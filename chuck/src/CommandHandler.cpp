@@ -591,6 +591,7 @@ QJsonObject CommandHandler::cmdKeys(const QJsonObject& params)
 
     if (!shortcut.isEmpty()) {
         QTest::keySequence(m_window, QKeySequence(shortcut));
+        QCoreApplication::processEvents();
         return QJsonObject { { QStringLiteral("shortcut"), shortcut } };
     }
 

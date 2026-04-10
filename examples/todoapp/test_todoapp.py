@@ -1,5 +1,7 @@
 # Launch todoapp before running:
-#   uv run --directory testa pytest examples/todoapp/test_todoapp.py -v
+#   uv run pytest examples/todoapp/test_todoapp.py -v
+#   uv run examples/todoapp/test_todoapp.py
+import asyncio
 import pytest
 from testa import TestaClient
 
@@ -86,3 +88,7 @@ async def test_todoapp():
         assert props["text"] == "Buy oat milk"
 
         await app.quit()
+
+
+if __name__ == "__main__":
+    asyncio.run(test_todoapp())
