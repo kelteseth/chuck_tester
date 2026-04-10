@@ -8,7 +8,7 @@ ApplicationWindow {
     width: 400
     height: 300
     visible: true
-    title: "Chuck Minimal Example"
+    title: "Tester Minimal Example"
 
     ColumnLayout {
         anchors.centerIn: parent
@@ -17,7 +17,7 @@ ApplicationWindow {
         Label {
             id: titleLabel
             objectName: "titleLabel"
-            text: "Hello from Chuck!"
+            text: "Hello from Tester!"
             font.pixelSize: 24
             Layout.alignment: Qt.AlignHCenter
         }
@@ -42,7 +42,7 @@ ApplicationWindow {
             Layout.alignment: Qt.AlignHCenter
             onClicked: {
                 nameField.text = ""
-                titleLabel.text = "Hello from Chuck!"
+                titleLabel.text = "Hello from Tester!"
             }
         }
     }

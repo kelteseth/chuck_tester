@@ -1,8 +1,8 @@
-site_name: chuck + testa
+site_name: chuck + tester
 site_description: AI-driven UI testing for Qt/QML applications
-site_url: https://chuck-testa.dev
-repo_url: https://github.com/user/chuck
-repo_name: chuck
+site_url: https://chuck-tester.dev
+repo_url: https://github.com/kelteseth/chuck_tester
+repo_name: chuck_tester
 
 theme:
   name: material
@@ -71,21 +71,21 @@ extra_css:
 extra:
   social:
   - icon: fontawesome/brands/github
-    link: https://github.com/user/chuck
+    link: https://github.com/kelteseth/chuck_tester
 
 nav:
 - Home: index.md
 - Getting Started: getting-started.md
-- Chuck (C++):
+- Tester (C++):
+  - Overview: tester/index.md
+  - API Reference: tester/api.md
+  - Commands: tester/commands.md
+  - QML Best Practices: tester/qml-practices.md
+- Chuck (Python):
   - Overview: chuck/index.md
-  - API Reference: chuck/api.md
-  - Commands: chuck/commands.md
-  - QML Best Practices: chuck/qml-practices.md
-- Testa (Python):
-  - Overview: testa/index.md
-  - Client API: testa/api.md
-  - CLI Reference: testa/cli.md
-  - MCP Server: testa/mcp.md
+  - Client API: chuck/api.md
+  - CLI Reference: chuck/cli.md
+  - MCP Server: chuck/mcp.md
 - Testing Guide:
   - Writing Tests: guide/writing-tests.md
   - Synchronization: guide/synchronization.md

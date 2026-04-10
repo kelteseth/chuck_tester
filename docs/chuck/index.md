@@ -1,38 +1,63 @@
-# Chuck — C++ Library
+# Chuck — Python Controller
 
-Chuck is a static C++ library that embeds a WebSocket server in your Qt/QML application. It exposes the QML object tree over JSON-RPC 2.0, allowing external controllers (testa, AI agents, or any WebSocket client) to interact with the UI.
+Chuck is the Python side of chuck_tester. It connects to a tester-enabled app over WebSocket and provides:
 
-## Architecture
+- **Async Python API** — `ChuckClient` for use in tests and scripts
+- **CLI** — `chuck replay`, `chuck repl`, `chuck export`, `chuck mcp`, etc.
+- **JSONL recording** — capture every action for deterministic replay
+- **Screenshot baselines** — save, compare, and diff screenshots
+- **MCP server** — expose tester commands as MCP tools for AI agents
 
-```mermaid
-graph TB
-    subgraph app["Your App Process"]
-        window["QQuickWindow<br/>(QML scene)"]
-        subgraph server["chuck::ChuckServer"]
-            handler["CommandHandler<br/>click | keys | wait | find | ..."]
-            finder["ItemFinder"]
-            pending["PendingWait"]
-        end
-        server -->|drives| window
-    end
-    server <-->|"WebSocket (port 1408)"| ext["External controllers"]
+## Installation
+
+Chuck is a Python package managed with uv:
+
+```bash
+# From the chuck_tester repository root
+uv add chuck --editable chuck/
+
+# Or in a standalone project
+uv pip install path/to/chuck
 ```
 
-## Dependencies
+### Dependencies
 
-| Module | Required | Purpose |
-|--------|----------|---------|
-| `Qt6::Core` | Yes | Base types |
-| `Qt6::Quick` | Yes | QQuickWindow, QQuickItem |
-| `Qt6::Qml` | Yes | QML engine integration |
-| `Qt6::WebSockets` | Yes | WebSocket server |
-| `Qt6::Test` | Yes | QTest::mouseClick, QTest::keyClick for input simulation |
+| Package | Purpose |
+|---------|---------|
+| `websockets` | WebSocket client |
+| `Pillow` | Screenshot handling, image comparison |
+| `mcp` | MCP server (optional, for AI integration) |
+| `pytest` + `pytest-asyncio` | Test framework (dev dependency) |
 
-## How It Works
+## Quick Example
 
-1. You create a `ChuckServer` and pass it your `QQuickWindow`
-2. `start()` opens a WebSocket server on the configured port
-3. When a client connects and sends a JSON-RPC 2.0 request, `CommandHandler` dispatches it
-4. `ItemFinder` walks the QML tree to locate items by `objectName` or property query
-5. Commands execute on the main thread using `QTest` input simulation
-6. Results are sent back as JSON-RPC 2.0 responses
+```python
+from chuck import ChuckClient
+
+async with ChuckClient(port=1408) as app:
+    await app.wait("mainPage", property="visible", value=True)
+    await app.click("addBtn")
+    await app.keys("nameField", text="Hello")
+    props = await app.get("nameField", props="text")
+    print(props["text"])  # "Hello"
+    await app.quit()
+```
+
+## Package Structure
+
+```
+chuck/
+├── pyproject.toml
+└── chuck/
+    ├── __init__.py        # Public API exports
+    ├── __main__.py        # CLI entry point
+    ├── client.py          # Low-level WebSocket JSON-RPC client
+    ├── commands.py        # ChuckClient high-level API
+    ├── recorder.py        # JSONL recording
+    ├── replayer.py        # JSONL replay with structured reporting
+    ├── exporter.py        # JSONL → Python test conversion
+    ├── screenshots.py     # Baseline management
+    ├── visual_diff.py     # SSIM, pHash, diff image generation
+    ├── mcp_server.py      # MCP tool server for AI agents
+    └── repl.py            # Interactive REPL
+```

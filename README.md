@@ -1,24 +1,24 @@
-# chuck + testa
+# chuck + tester
 
-UI testing for Qt/QML apps. Chuck is a C++ library you link into your app. Testa is the Python side that talks to it.
+UI testing for Qt/QML apps. Tester is a C++ library you link into your app. Chuck is the Python side that talks to it.
 
 ```mermaid
 graph LR
-    A["testa<br/>(Python)"] <-->|"WebSocket<br/>port 1408"| B["chuck<br/>(C++ lib)"]
+    A["chuck<br/>(Python)"] <-->|"WebSocket<br/>port 1408"| B["tester<br/>(C++ lib)"]
 ```
 
-Chuck embeds a WebSocket server in your app. Testa connects to it and drives the UI — clicking buttons, typing text, reading properties, taking screenshots. Everything goes through JSON-RPC 2.0.
+Tester embeds a WebSocket server in your app. Chuck connects to it and drives the UI — clicking buttons, typing text, reading properties, taking screenshots. Everything goes through JSON-RPC 2.0.
 
 ## Quick start
 
-Add chuck to your app:
+Add tester to your app:
 
 ```cpp
-#include <chuck/ChuckServer.h>
+#include <tester/TesterServer.h>
 
 // after your QML engine loads:
 auto *window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
-chuck::ChuckServer server(*window);
+tester::TesterServer server(*window);
 server.start();
 ```
 
@@ -26,18 +26,18 @@ Link it in CMake:
 
 ```cmake
 find_package(Qt6 REQUIRED COMPONENTS Quick Qml WebSockets Test)
-target_link_libraries(myapp PRIVATE Qt6::Quick Qt6::Qml chuck)
+target_link_libraries(myapp PRIVATE Qt6::Quick Qt6::Qml tester)
 ```
 
 Write a test:
 
 ```python
 import pytest
-from testa import TestaClient
+from chuck import ChuckClient
 
 @pytest.mark.asyncio
 async def test_my_app():
-    async with TestaClient(port=1408) as app:
+    async with ChuckClient(port=1408) as app:
         await app.wait("mainWindow", property="visible", value=True, timeout=5000)
         await app.click("myButton")
         props = await app.get("myLabel", props="text")
@@ -51,7 +51,7 @@ Run it (app must be running first):
 uv run pytest examples/todoapp/test_todoapp.py -v
 ```
 
-## What testa can do
+## What chuck can do
 
 - `click` / `keys` / `drag` / `swipe` — interact with QML items by objectName
 - `get` — read any property

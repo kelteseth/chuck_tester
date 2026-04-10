@@ -1,6 +1,6 @@
 # Synchronization
 
-The biggest source of flaky tests is timing. Chuck provides `wait()` as the primary synchronization primitive.
+The biggest source of flaky tests is timing. Tester provides `wait()` as the primary synchronization primitive.
 
 ## Rule: Wait Before You Act
 
@@ -74,7 +74,7 @@ await app.wait("progressBar", property="visible", value=False, timeout=10000)
 
 ## Keyboard Shortcuts
 
-`QTest::keySequence` queues events that Qt processes asynchronously. Chuck includes a `processEvents()` call after shortcuts so QML Action handlers fire before the response returns. No extra waits needed:
+`QTest::keySequence` queues events that Qt processes asynchronously. Tester includes a `processEvents()` call after shortcuts so QML Action handlers fire before the response returns. No extra waits needed:
 
 ```python
 await app.keys(shortcut="Ctrl+S")  # save — handler fires before this returns
@@ -124,7 +124,7 @@ for _ in range(10):
     except ChuckError:
         await asyncio.sleep(0.5)
 
-# ✓ Let chuck handle it
+# ✓ Let tester handle it
 await app.wait("myBtn", property="visible", value=True, timeout=5000)
 await app.click("myBtn")
 ```

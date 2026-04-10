@@ -1,10 +1,10 @@
 [project]
-name = "chuck-workspace"
+name = "chuck-tester-workspace"
 version = "0.0.0"
-description = "Workspace root for running testa tests"
+description = "Workspace root for running chuck tests"
 requires-python = ">=3.12"
 dependencies = [
-    "testa",
+    "chuck",
     "pytest>=8.0",
     "pytest-asyncio>=1.0",
 ]
@@ -15,7 +15,7 @@ docs = [
 ]
 
 [tool.uv.sources]
-testa = { path = "testa", editable = true }
+chuck = { path = "chuck", editable = true }
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -1,13 +1,13 @@
 # Example: Todo App
 
-A complete Material Design todo app with StackView navigation, tested with chuck+testa.
+A complete Material Design todo app with StackView navigation, tested with chuck_tester.
 
 ## App Structure
 
 ```
 examples/todoapp/
 ├── CMakeLists.txt
-├── main.cpp                 # App entry + chuck setup
+├── main.cpp                 # App entry + tester setup
 ├── Todo.h / Todo.cpp       # Todo model
 ├── Main.qml                # StackView + shortcuts
 ├── TodoListPage.qml        # List with delegates
@@ -24,7 +24,7 @@ examples/todoapp/
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
 #include <QQuickWindow>
-#include <chuck/ChuckServer.h>
+#include <tester/TesterServer.h>
 
 int main(int argc, char *argv[])
 {
@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
     engine.loadFromModule("TodoApp", "Main");
 
     auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
-    chuck::ChuckServer server(*window);
+    tester::TesterServer server(*window);
     server.start();
 
     return app.exec();
@@ -67,16 +67,16 @@ Key items and their objectNames:
 
 ```python title="test_todoapp.py"
 import pytest
-from testa import TestaClient
+from chuck import ChuckClient
 
 STACK = "stack"
 
-async def wait_nav(app: TestaClient):
+async def wait_nav(app: ChuckClient):
     await app.wait(STACK, property="busy", value=False, timeout=3000)
 
 @pytest.mark.asyncio
 async def test_todoapp():
-    async with TestaClient(port=1408) as app:
+    async with ChuckClient(port=1408) as app:
         await app.wait("listPage", property="visible", value=True, timeout=5000)
 
         # Add a todo

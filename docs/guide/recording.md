@@ -1,6 +1,6 @@
 # Recording & Replay
 
-Testa can record every interaction as JSONL (JSON Lines) and replay it later for regression testing.
+Chuck can record every interaction as JSONL (JSON Lines) and replay it later for regression testing.
 
 ## JSONL Format
 
@@ -30,7 +30,7 @@ One JSON object per line. Each line has an `action` and relevant parameters:
 ### During MCP Sessions
 
 ```bash
-uv run testa mcp --port 1408 --record session.jsonl
+uv run chuck mcp --port 1408 --record session.jsonl
 ```
 
 Every AI tool call is automatically logged.
@@ -38,10 +38,10 @@ Every AI tool call is automatically logged.
 ### Programmatic Recording
 
 ```python
-from testa import TestaClient
-from testa.recorder import Recorder
+from chuck import ChuckClient
+from chuck.recorder import Recorder
 
-async with TestaClient(port=1408) as app:
+async with ChuckClient(port=1408) as app:
     rec = Recorder("session.jsonl")
     rec.start()
 
@@ -56,13 +56,13 @@ async with TestaClient(port=1408) as app:
 
 ```bash
 # Basic replay
-uv run testa replay session.jsonl
+uv run chuck replay session.jsonl
 
 # With visual verification
-uv run testa replay session.jsonl --fail-on-diff
+uv run chuck replay session.jsonl --fail-on-diff
 
 # Custom port
-uv run testa replay session.jsonl --port 9223
+uv run chuck replay session.jsonl --port 9223
 ```
 
 Output:
@@ -81,7 +81,7 @@ Replay PASSED
 
 ### Failure Reporting
 
-On failure, testa writes `session.report.json`:
+On failure, chuck writes `session.report.json`:
 
 ```json
 {
@@ -106,7 +106,7 @@ On failure, testa writes `session.report.json`:
 Convert a JSONL session to a pytest test file:
 
 ```bash
-uv run testa export session.jsonl --to-python test_flow.py
+uv run chuck export session.jsonl --to-python test_flow.py
 ```
 
 Generated output:
@@ -114,11 +114,11 @@ Generated output:
 ```python
 # Auto-generated from session.jsonl
 import pytest
-from testa import TestaClient
+from chuck import ChuckClient
 
 @pytest.mark.asyncio
 async def test_session():
-    async with TestaClient(port=1408) as app:
+    async with ChuckClient(port=1408) as app:
         await app.wait('mainWindow', property='visible', value=True, timeout=10000)
         await app.click('createProjectBtn')
         await app.keys('nameField', text='My Project')

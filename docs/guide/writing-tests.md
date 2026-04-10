@@ -6,19 +6,19 @@ Tests are regular async Python functions using pytest and pytest-asyncio.
 
 ```python
 import pytest
-from testa import TestaClient
+from chuck import ChuckClient
 
 STACK = "stack"  # StackView objectName — declare once
 
 
-async def wait_nav(app: TestaClient):
+async def wait_nav(app: ChuckClient):
     """Wait for StackView animation to finish."""
     await app.wait(STACK, property="busy", value=False, timeout=3000)
 
 
 @pytest.mark.asyncio
 async def test_my_feature():
-    async with TestaClient(port=1408) as app:
+    async with ChuckClient(port=1408) as app:
         # Wait for app to be ready
         await app.wait("listPage", property="visible", value=True, timeout=5000)
 
@@ -32,7 +32,7 @@ async def test_my_feature():
 
 ### Key Rules
 
-1. **One `TestaClient` per test** — the async context manager connects and disconnects
+1. **One `ChuckClient` per test** — the async context manager connects and disconnects
 2. **Always wait first** — `wait()` for the initial page before interacting
 3. **All commands are awaited** — they're async JSON-RPC calls
 4. **End with `quit()`** — close the app gracefully
@@ -53,7 +53,7 @@ uv run examples/todoapp/test_suite.py
 
 ## Assertions
 
-Chuck commands return dicts. Assert on specific properties:
+Tester commands return dicts. Assert on specific properties:
 
 ```python
 # Text content
@@ -69,7 +69,7 @@ props = await app.get("myItem", props="visible")
 assert props["visible"] is True
 
 # Item existence (raises ChuckError -32001 if missing)
-from testa import ChuckError
+from chuck import ChuckError
 with pytest.raises(ChuckError):
     await app.get("deletedItem")
 ```

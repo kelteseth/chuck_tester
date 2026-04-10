@@ -14,7 +14,7 @@ import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-SAVE_FILE = Path(os.environ.get("LOCALAPPDATA", "")) / "chuck" / "todoapp" / "todos.json"
+SAVE_FILE = Path(os.environ.get("LOCALAPPDATA", "")) / "chuck_tester" / "todoapp" / "todos.json"
 
 
 def find_exe() -> Path:

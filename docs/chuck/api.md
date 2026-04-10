@@ -1,75 +1,165 @@
-# Chuck API Reference
+# Chuck Client API
 
-## ChuckServer
+## ChuckClient
 
-The only public header: `#include <chuck/ChuckServer.h>`
+The main interface for driving a tester-enabled app.
 
-### Config
+```python
+from chuck import ChuckClient
 
-```cpp
-namespace chuck {
-
-struct Config {
-    quint16 port = 1408;
-};
-
-} // namespace chuck
+async with ChuckClient(host="127.0.0.1", port=1408) as app:
+    ...
 ```
 
-### Class
+### Constructor
 
-```cpp
-namespace chuck {
-
-class ChuckServer : public QObject {
-    Q_OBJECT
-public:
-    explicit ChuckServer(QQuickWindow& window, Config config);
-    explicit ChuckServer(QQuickWindow& window);  // uses default Config
-    ~ChuckServer() override;
-
-    auto start() -> bool;   // returns true if server started successfully
-    auto stop() -> void;    // stops the server and disconnects all clients
-};
-
-} // namespace chuck
+```python
+ChuckClient(
+    host: str = "127.0.0.1",
+    port: int = 1408,
+    *,
+    uri: str | None = None,          # override full WebSocket URI
+    baseline_dir: str | Path = "baselines",  # for screenshot baselines
+)
 ```
 
-### Usage
+### click
 
-```cpp
-#include <chuck/ChuckServer.h>
-
-// Default port (1408)
-chuck::ChuckServer server(*window);
-server.start();
-
-// Custom port
-chuck::ChuckServer server(*window, {.port = 9223});
-server.start();
+```python
+await app.click(
+    item: str,               # objectName
+    *,
+    button: str = None,      # "left", "right", "middle"
+    double: bool = False,    # double-click
+    hold: int = None,        # hold duration in ms
+    root: str = None,        # scope search to this objectName
+)
 ```
 
-### Lifetime
+### keys
 
-- `ChuckServer` must outlive the `QQuickWindow` it's attached to
-- Call `start()` after the QML engine has loaded and the window exists
-- The server stops automatically when destroyed
-- Multiple clients can connect simultaneously
-
-### Thread Safety
-
-All commands execute on the Qt main thread. The WebSocket server runs on the same event loop as your application. This is intentional — QML items can only be accessed from the main thread.
-
-## CMake Integration
-
-```cmake
-# As subdirectory
-add_subdirectory(chuck)
-target_link_libraries(myapp PRIVATE chuck)
-
-# As installed package
-find_package(chuck REQUIRED)
-target_link_libraries(myapp PRIVATE chuck::chuck)
+```python
+await app.keys(
+    item: str = None,        # target item (optional for shortcuts)
+    *,
+    text: str = None,        # type this text
+    key: str = None,         # special key ("Return", "Escape", etc.)
+    shortcut: str = None,    # shortcut ("Ctrl+S", "Ctrl+A", etc.)
+    root: str = None,
+)
 ```
 
-Chuck is built as a static library by default.
+Provide exactly one of `text`, `key`, or `shortcut`.
+
+### get
+
+```python
+result = await app.get(
+    item: str,               # objectName
+    *,
+    props: str = None,       # comma-separated: "text,enabled,visible"
+) -> dict[str, Any]
+```
+
+Returns a dict of property names to values.
+
+### wait
+
+```python
+await app.wait(
+    item: str,               # objectName
+    *,
+    property: str = None,    # property to watch
+    value: Any = None,       # expected value
+    timeout: int = 5000,     # ms
+)
+```
+
+- Without `property`: waits for the item to exist in the tree
+- With `property` and `value`: waits for `item.property == value`
+- Raises `ChuckError(-32006)` on timeout
+
+### find
+
+```python
+items = await app.find(
+    *,
+    type: str = None,        # QML type name
+    interactive: bool = False,
+    accessible: bool = False,
+    depth: int = None,
+    root: str = None,
+    props: str = None,
+) -> list[dict]
+```
+
+### tree
+
+```python
+items = await app.tree(
+    *,
+    root: str = None,
+    depth: int = None,
+    props: str = None,
+) -> list[dict]
+```
+
+### screenshot
+
+```python
+result = await app.screenshot(
+    item: str = None,             # crop to item, or full window
+    *,
+    tag: str = None,              # baseline label
+    verify: bool = False,         # compare against baseline
+    save_to: str | Path = None,   # save PNG to path
+    method: str = "ssim",         # "ssim", "phash", "exact"
+    threshold: float = 0.95,
+    mask_regions: list[tuple] = None,
+) -> dict
+```
+
+When `verify=True` and a baseline exists, returns `match` (bool) and `score` (float). When no baseline exists, creates one automatically.
+
+### drag
+
+```python
+await app.drag(from_item: str, to_item: str, *, root: str = None)
+```
+
+### swipe
+
+```python
+await app.swipe(item: str, *, direction: str = "up", distance: int = 200)
+```
+
+### quit
+
+```python
+await app.quit()
+```
+
+## ChuckError
+
+All chuck errors are raised as `ChuckError`:
+
+```python
+from chuck import ChuckError
+
+try:
+    await app.click("missingBtn")
+except ChuckError as e:
+    print(e.code)     # -32001
+    print(e.message)  # "Item not found: missingBtn"
+    print(e.data)     # optional extra context
+```
+
+See [Error Codes](../tester/commands.md#error-codes) for the full list.
+
+## Low-Level Client
+
+For advanced use, access the raw JSON-RPC client:
+
+```python
+result = await app.raw.call("someMethod", param1="value")
+```

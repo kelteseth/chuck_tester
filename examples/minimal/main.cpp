@@ -1,7 +1,7 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQuickWindow>
-#include <chuck/ChuckServer.h>
+#include <tester/TesterServer.h>
 
 int main(int argc, char* argv[])
 {
@@ -17,8 +17,8 @@ int main(int argc, char* argv[])
     if (!window)
         return -1;
 
-    // Start the chuck automation server on the default port
-    chuck::ChuckServer server(*window);
+    // Start the tester automation server on the default port
+    tester::TesterServer server(*window);
     server.start();
 
     return app.exec();

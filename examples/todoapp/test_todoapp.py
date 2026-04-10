@@ -3,19 +3,19 @@
 #   uv run examples/todoapp/test_todoapp.py
 import asyncio
 import pytest
-from testa import TestaClient
+from chuck import ChuckClient
 
 STACK = "stack"
 
 
-async def wait_nav(app: TestaClient):
+async def wait_nav(app: ChuckClient):
     """Wait for StackView transition animation to finish."""
     await app.wait(STACK, property="busy", value=False, timeout=3000)
 
 
 @pytest.mark.asyncio
 async def test_todoapp():
-    async with TestaClient(port=1408) as app:
+    async with ChuckClient(port=1408) as app:
         await app.wait("listPage", property="visible", value=True, timeout=5000)
 
         # Verify app started — list page is visible

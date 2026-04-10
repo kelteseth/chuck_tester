@@ -2,12 +2,12 @@
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
 #include <QQuickWindow>
-#include <chuck/ChuckServer.h>
+#include <tester/TesterServer.h>
 
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
-    app.setOrganizationName("chuck");
+    app.setOrganizationName("chuck_tester");
     app.setApplicationName("todoapp");
     QQuickStyle::setStyle("Material");
 
@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
     if (!window)
         return -1;
 
-    chuck::ChuckServer server(*window);
+    tester::TesterServer server(*window);
     server.start();
 
     return app.exec();

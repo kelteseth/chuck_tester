@@ -1,6 +1,6 @@
 # AI Repair
 
-When a test fails, an AI agent can diagnose and fix it using the **testa-repair** skill. This is the "self-healing" part of chuck+testa.
+When a test fails, an AI agent can diagnose and fix it using the **chuck-repair** skill. This is the "self-healing" part of chuck_tester.
 
 ## How It Works
 
@@ -13,12 +13,12 @@ graph LR
     E --> F["Re-run"]
 ```
 
-There's no magic LLM API call embedded in the code. The intelligence lives in a **Copilot skill** (`.github/skills/testa-repair/SKILL.md`) that teaches any AI agent how to diagnose and fix test failures. The Python side just produces structured failure context.
+There's no magic LLM API call embedded in the code. The intelligence lives in a **Copilot skill** (`.github/skills/chuck-repair/SKILL.md`) that teaches any AI agent how to diagnose and fix test failures. The Python side just produces structured failure context.
 
 ## Generating a Failure Report
 
 ```bash
-uv run testa repair session.jsonl --port 1408
+uv run chuck repair session.jsonl --port 1408
 ```
 
 On failure, this produces:
@@ -32,7 +32,7 @@ On failure, this produces:
 ### 1. Capture
 
 ```bash
-uv run testa repair session.jsonl
+uv run chuck repair session.jsonl
 ```
 
 ### 2. Diagnose
@@ -70,7 +70,7 @@ Traditional test repair tools embed an LLM: they call an API, format a prompt, p
 - Complex prompt management code
 - Brittle response parsing
 
-Chuck+testa takes a different approach: the repair logic is a **Copilot skill** — a markdown document that teaches the AI agent how to diagnose failures. The agent already has all the tools it needs (file editing, terminal, MCP).
+Chuck_tester takes a different approach: the repair logic is a **Copilot skill** — a markdown document that teaches the AI agent how to diagnose failures. The agent already has all the tools it needs (file editing, terminal, MCP).
 
 **Benefits:**
 
@@ -85,7 +85,7 @@ Chuck+testa takes a different approach: the repair logic is a **Copilot skill** 
 ```yaml
 # GitHub Actions example
 - name: Run tests
-  run: uv run testa replay session.jsonl --fail-on-diff
+  run: uv run chuck replay session.jsonl --fail-on-diff
 
 - name: Upload failure artifacts
   if: failure()

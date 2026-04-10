@@ -1,6 +1,6 @@
 # Visual Testing
 
-Chuck can capture screenshots. Testa compares them against stored baselines to detect visual regressions.
+Tester can capture screenshots. Chuck compares them against stored baselines to detect visual regressions.
 
 ## Capture a Screenshot
 
@@ -38,7 +38,7 @@ await app.screenshot(tag="login_page", verify=True)
 Or capture all baselines from a JSONL session:
 
 ```bash
-uv run testa baseline session.jsonl
+uv run chuck baseline session.jsonl
 ```
 
 ### Update Baselines
@@ -47,7 +47,7 @@ When the UI intentionally changes:
 
 ```bash
 # Re-run the session to capture new baselines
-uv run testa baseline session.jsonl --baseline-dir baselines
+uv run chuck baseline session.jsonl --baseline-dir baselines
 ```
 
 Or delete the old baseline and re-run — it'll be recreated.
@@ -101,14 +101,14 @@ await app.screenshot(
 
 ```bash
 # Fail the build on any visual regression
-uv run testa verify session.jsonl --fail-on-diff --method ssim --threshold 0.95
+uv run chuck verify session.jsonl --fail-on-diff --method ssim --threshold 0.95
 ```
 
 Exit code 0 = all screenshots match. Exit code 1 = mismatch detected.
 
 ### Diff Inspection
 
-On mismatch, testa saves:
+On mismatch, chuck saves:
 
 - `baselines/diffs/<tag>.actual.png` — what the app looked like
 - `baselines/diffs/<tag>.diff.png` — red-highlighted changed regions
@@ -118,7 +118,7 @@ Upload these as CI artifacts for review.
 ## Python API
 
 ```python
-from testa import BaselineStore, CompareResult
+from chuck import BaselineStore, CompareResult
 
 store = BaselineStore("baselines")
 

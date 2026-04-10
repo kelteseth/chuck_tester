@@ -24,4 +24,4 @@ qt_add_qml_module(todoapp
         qtquickcontrols2.conf
 )
 
-target_link_libraries(todoapp PRIVATE Qt6::Quick Qt6::Qml Qt6::QuickControls2 chuck)
+target_link_libraries(todoapp PRIVATE Qt6::Quick Qt6::Qml Qt6::QuickControls2 tester)

@@ -6,24 +6,24 @@
 - **CMake 3.18+** and a C++23 compiler
 - **Python 3.12+** with [uv](https://docs.astral.sh/uv/)
 
-## 1. Add Chuck to Your App
+## 1. Add Tester to Your App
 
 ### CMake
 
 ```cmake
-# Option A: subdirectory (if chuck is in your repo)
-add_subdirectory(path/to/chuck)
-target_link_libraries(myapp PRIVATE chuck)
+# Option A: subdirectory (if tester is in your repo)
+add_subdirectory(path/to/tester)
+target_link_libraries(myapp PRIVATE tester)
 
 # Option B: installed package
-find_package(chuck REQUIRED)
-target_link_libraries(myapp PRIVATE chuck::chuck)
+find_package(tester REQUIRED)
+target_link_libraries(myapp PRIVATE tester::tester)
 ```
 
 ### C++ — Three Lines
 
 ```cpp
-#include <chuck/ChuckServer.h>
+#include <tester/TesterServer.h>
 
 int main(int argc, char *argv[])
 {
@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
     auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
 
     // Add these three lines:
-    chuck::ChuckServer server(*window);  // (1)!
+    tester::TesterServer server(*window);  // (1)!
     server.start();                       // (2)!
 
     return app.exec();                    // (3)!
@@ -48,12 +48,12 @@ int main(int argc, char *argv[])
 ### Custom Port
 
 ```cpp
-chuck::ChuckServer server(*window, {.port = 9223});
+tester::TesterServer server(*window, {.port = 9223});
 ```
 
 ## 2. Add objectNames to Your QML
 
-Chuck finds items by `objectName`. Add them to anything you want to test:
+Tester finds items by `objectName`. Add them to anything you want to test:
 
 ```qml
 Page {
@@ -83,26 +83,26 @@ Page {
 1. Delegates get indexed names
 2. Children reference the delegate's index via its `id`
 
-## 3. Install Testa
+## 3. Install Chuck
 
 ```bash
-# Create a pyproject.toml or add testa to your dependencies
-uv add testa --editable path/to/testa
+# Create a pyproject.toml or add chuck to your dependencies
+uv add chuck --editable path/to/chuck
 
 # Or install directly
-uv pip install path/to/testa
+uv pip install path/to/chuck
 ```
 
 ## 4. Write Your First Test
 
 ```python title="test_myapp.py"
 import pytest
-from testa import TestaClient
+from chuck import ChuckClient
 
 
 @pytest.mark.asyncio
 async def test_hello():
-    async with TestaClient(port=1408) as app:
+    async with ChuckClient(port=1408) as app:
         # Wait for the app to load
         await app.wait("listPage", property="visible", value=True, timeout=5000)
 
@@ -160,7 +160,7 @@ if __name__ == "__main__":
 
 ## Next Steps
 
-- [Chuck Commands](chuck/commands.md) — full list of what chuck can do
-- [Testa API](testa/api.md) — all Python methods
+- [Tester Commands](tester/commands.md) — full list of what tester can do
+- [Chuck API](chuck/api.md) — all Python methods
 - [Synchronization Patterns](guide/synchronization.md) — handling animations and async operations
 - [Todo App Example](examples/todoapp.md) — a complete worked example

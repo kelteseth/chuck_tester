@@ -1,4 +1,4 @@
-"""Configure and build the chuck project using CMake presets.
+"""Configure and build the chuck_tester project using CMake presets.
 
 Automates the build pipeline:
   1. Configures cmake (via presets) if build dir doesn't exist or --configure is set
@@ -15,7 +15,7 @@ Examples:
     uv run build.py --preset linux-debug-qt-6.11.0
 
     # macOS Clang release, specific target
-    uv run build.py --preset macos-release-qt-6.11.0 --target chuck
+    uv run build.py --preset macos-release-qt-6.11.0 --target tester
 
     # Force reconfigure
     uv run build.py --preset windows-debug-qt-6.11.0 --configure
@@ -168,7 +168,7 @@ def run_build(
 def create_parser() -> argparse.ArgumentParser:
     """Create the argument parser."""
     parser = argparse.ArgumentParser(
-        description="Configure and build chuck using CMake presets.",
+        description="Configure and build chuck_tester using CMake presets.",
         epilog=(
             "Available presets:\n"
             "  windows-debug-qt-6.11.0   MSVC 64-bit Debug\n"
@@ -188,7 +188,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--target",
         default=None,
-        help="Build target (e.g. chuck). Omit to build all targets.",
+        help="Build target (e.g. tester). Omit to build all targets.",
     )
     parser.add_argument(
         "--configure",
