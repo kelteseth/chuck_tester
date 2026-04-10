@@ -1,0 +1,9 @@
+{"ts": "2026-04-10T14:00:00.000Z", "action": "wait", "item": "mainWindow", "property": "visible", "value": true, "timeout": 5000}
+{"ts": "2026-04-10T14:00:01.000Z", "action": "screenshot", "tag": "initial_state"}
+{"ts": "2026-04-10T14:00:01.200Z", "action": "click", "item": "nameField"}
+{"ts": "2026-04-10T14:00:01.500Z", "action": "keys", "item": "nameField", "text": "World"}
+{"ts": "2026-04-10T14:00:02.000Z", "action": "click", "item": "greetBtn"}
+{"ts": "2026-04-10T14:00:02.500Z", "action": "get", "item": "titleLabel", "props": "text"}
+{"ts": "2026-04-10T14:00:03.000Z", "action": "screenshot", "tag": "greeted"}
+{"ts": "2026-04-10T14:00:03.500Z", "action": "click", "item": "resetBtn"}
+{"ts": "2026-04-10T14:00:04.000Z", "action": "screenshot", "tag": "reset"}

@@ -3,6 +3,7 @@
 #include "ItemFinder.h"
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonValue>
 #include <QQuickWindow>
 #include <QWebSocket>
 #include <QWebSocketServer>
@@ -80,12 +81,12 @@ auto ChuckServer::onTextMessageReceived(const QString& message) -> void
     const auto doc = QJsonDocument::fromJson(message.toUtf8());
     if (!doc.isObject()) {
         const auto err = QJsonObject {
-            { QStringLiteral("id"), -1 },
-            { QStringLiteral("ok"), false },
+            { QStringLiteral("jsonrpc"), QStringLiteral("2.0") },
+            { QStringLiteral("id"), QJsonValue::Null },
             {
                 QStringLiteral("error"),
                 QJsonObject {
-                    { QStringLiteral("code"), QStringLiteral("parse_error") },
+                    { QStringLiteral("code"), ErrParseError },
                     { QStringLiteral("message"), QStringLiteral("Invalid JSON") },
                 },
             },
@@ -95,7 +96,7 @@ auto ChuckServer::onTextMessageReceived(const QString& message) -> void
     }
 
     const auto request = doc.object();
-    qDebug() << "[chuck] Received:" << request["cmd"].toString() << "id:" << request["id"].toInt();
+    qDebug() << "[chuck] Received:" << request["method"].toString() << "id:" << request["id"];
 
     auto safeSocket = QPointer<QWebSocket> { senderSocket };
     m_handler->handleCommand(request, [this, safeSocket](const QJsonObject& response) {

@@ -31,7 +31,7 @@ signals:
 
 private:
     auto resolve(const QJsonObject& result) -> void;
-    auto reject(const QString& code, const QString& message) -> void;
+    auto reject(int code, const QString& message) -> void;
     auto cleanup() -> void;
     auto connectPropertyNotify(QObject* target, const QString& property, const QVariant& expectedValue) -> void;
     auto checkPropertyNow(QObject* target, const QString& property, const QVariant& expectedValue) -> void;

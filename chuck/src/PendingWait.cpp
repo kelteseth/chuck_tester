@@ -1,5 +1,6 @@
 #include "PendingWait.h"
 #include "ItemFinder.h"
+#include <QJsonValue>
 #include <QMetaProperty>
 #include <QQuickItem>
 
@@ -28,7 +29,7 @@ auto PendingWait::waitForProperty(QObject* target, const QString& property, cons
     connectPropertyNotify(target, property, expectedValue);
 
     connect(&m_timeout, &QTimer::timeout, this, [this, property]() {
-        reject(QStringLiteral("timeout"), QStringLiteral("Timeout waiting for property '%1'").arg(property));
+        reject(ErrTimeout, QStringLiteral("Timeout waiting for property '%1'").arg(property));
     });
     m_timeout.start(timeoutMs);
 }
@@ -72,7 +73,7 @@ auto PendingWait::waitForItem(std::shared_ptr<ItemFinder> finder, const QString&
     m_pollTimers.push_back(pollTimer);
 
     connect(&m_timeout, &QTimer::timeout, this, [this, identifier]() {
-        reject(QStringLiteral("timeout"), QStringLiteral("Timeout waiting for item '%1'").arg(identifier));
+        reject(ErrTimeout, QStringLiteral("Timeout waiting for item '%1'").arg(identifier));
     });
     m_timeout.start(timeoutMs);
 }
@@ -82,7 +83,7 @@ auto PendingWait::connectPropertyNotify(QObject* target, const QString& property
     const auto* meta = target->metaObject();
     const auto propIndex = meta->indexOfProperty(property.toLatin1().constData());
     if (propIndex < 0) {
-        reject(QStringLiteral("property_not_found"), QStringLiteral("Property '%1' not found").arg(property));
+        reject(ErrPropertyNotFound, QStringLiteral("Property '%1' not found").arg(property));
         return;
     }
 
@@ -130,7 +131,7 @@ auto PendingWait::checkPropertyNow(QObject* target, const QString& property, con
 
 auto PendingWait::onTargetDestroyed() -> void
 {
-    reject(QStringLiteral("item_destroyed"), QStringLiteral("Target item was destroyed"));
+    reject(ErrItemNotFound, QStringLiteral("Target item was destroyed"));
 }
 
 auto PendingWait::resolve(const QJsonObject& result) -> void
@@ -141,14 +142,14 @@ auto PendingWait::resolve(const QJsonObject& result) -> void
     cleanup();
 
     const auto response = QJsonObject {
-        { QStringLiteral("ok"), true },
+        { QStringLiteral("jsonrpc"), QStringLiteral("2.0") },
         { QStringLiteral("result"), result },
     };
     m_callback(response);
     emit finished(m_requestId);
 }
 
-auto PendingWait::reject(const QString& code, const QString& message) -> void
+auto PendingWait::reject(int code, const QString& message) -> void
 {
     if (m_resolved)
         return;
@@ -156,7 +157,7 @@ auto PendingWait::reject(const QString& code, const QString& message) -> void
     cleanup();
 
     const auto response = QJsonObject {
-        { QStringLiteral("ok"), false },
+        { QStringLiteral("jsonrpc"), QStringLiteral("2.0") },
         {
             QStringLiteral("error"),
             QJsonObject {

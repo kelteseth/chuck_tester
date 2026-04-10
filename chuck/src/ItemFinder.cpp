@@ -1,4 +1,6 @@
 #include "ItemFinder.h"
+#include <QJsonObject>
+#include <QJsonValue>
 #include <QQmlContext>
 #include <QQmlExpression>
 #include <QQuickItem>
@@ -82,7 +84,7 @@ QQuickItem* ItemFinder::findByObjectName(QQuickItem* root, const QString& name) 
 std::expected<QQuickItem*, FindError> ItemFinder::findByNameOrType(QQuickItem* root, const QString& segment) const
 {
     if (!root)
-        return std::unexpected(FindError { QStringLiteral("item_not_found"), QStringLiteral("No root item") });
+        return std::unexpected(FindError { ErrItemNotFound, QStringLiteral("No root item") });
 
     QQuickItem* objectNameMatch = nullptr;
     QQuickItem* typeMatch = nullptr;
@@ -123,27 +125,27 @@ std::expected<QQuickItem*, FindError> ItemFinder::findByNameOrType(QQuickItem* r
     if (objectNameMatch) {
         if (objectNameCount > 1)
             return std::unexpected(FindError {
-                QStringLiteral("ambiguous_item"),
+                ErrAmbiguousItem,
                 QStringLiteral("'%1' matches %2 items by objectName — use a path to disambiguate").arg(segment).arg(objectNameCount) });
         return objectNameMatch;
     }
     if (typeMatch) {
         if (typeCount > 1)
             return std::unexpected(FindError {
-                QStringLiteral("ambiguous_item"),
+                ErrAmbiguousItem,
                 QStringLiteral("'%1' matches %2 items by type — use a more specific path").arg(segment).arg(typeCount) });
         return typeMatch;
     }
-    return std::unexpected(FindError { QStringLiteral("item_not_found"), QStringLiteral("Segment not found: %1").arg(segment) });
+    return std::unexpected(FindError { ErrItemNotFound, QStringLiteral("Segment not found: %1").arg(segment) });
 }
 
 std::expected<QQuickItem*, FindError> ItemFinder::findByPath(const QStringList& segments) const
 {
     if (segments.isEmpty())
-        return std::unexpected(FindError { QStringLiteral("item_not_found"), QStringLiteral("Empty path") });
+        return std::unexpected(FindError { ErrItemNotFound, QStringLiteral("Empty path") });
 
     if (segments.size() == 1)
-        return std::unexpected(FindError { QStringLiteral("item_not_found"), QStringLiteral("Single segment handled by findItem") });
+        return std::unexpected(FindError { ErrItemNotFound, QStringLiteral("Single segment handled by findItem") });
 
     QQuickItem* current = nullptr;
 
@@ -202,7 +204,7 @@ QQuickItem* ItemFinder::findDelegate(QQuickItem* parent, int index) const
 std::expected<FindResult, FindError> ItemFinder::findItem(const QString& identifier, QQuickItem* root) const
 {
     if (identifier.isEmpty())
-        return std::unexpected(FindError { QStringLiteral("item_not_found"), QStringLiteral("Empty identifier") });
+        return std::unexpected(FindError { ErrItemNotFound, QStringLiteral("Empty identifier") });
 
     const auto parsed = parseIdentifier(identifier);
 
@@ -214,7 +216,7 @@ std::expected<FindResult, FindError> ItemFinder::findItem(const QString& identif
 
         auto* delegate = findDelegate(parentResult->item, parsed.delegateIndex);
         if (!delegate)
-            return std::unexpected(FindError { QStringLiteral("item_not_found"),
+            return std::unexpected(FindError { ErrItemNotFound,
                 QStringLiteral("Delegate [%1] not found in %2").arg(parsed.delegateIndex).arg(parentName) });
 
         return FindResult {
@@ -271,19 +273,85 @@ std::expected<FindResult, FindError> ItemFinder::findItem(const QString& identif
 
     if (candidates.size() > 1) {
         return std::unexpected(FindError {
-            QStringLiteral("ambiguous_item"),
+            ErrAmbiguousItem,
             QStringLiteral("'%1' found in both content and overlay tree — use 'overlay/%1' to disambiguate").arg(name) });
     }
 
     if (candidates.size() == 1)
         return FindResult { candidates.front().item, candidates.front().path };
 
-    if (contentResult.error().code == QStringLiteral("ambiguous_item"))
+    if (contentResult.error().code == ErrAmbiguousItem)
         return std::unexpected(contentResult.error());
-    if (overlayResult.error().code == QStringLiteral("ambiguous_item"))
+    if (overlayResult.error().code == ErrAmbiguousItem)
         return std::unexpected(overlayResult.error());
 
-    return std::unexpected(FindError { QStringLiteral("item_not_found"), QStringLiteral("Item not found: %1").arg(name) });
+    return std::unexpected(FindError { ErrItemNotFound, QStringLiteral("Item not found: %1").arg(name) });
+}
+
+std::expected<FindResult, FindError> ItemFinder::findByProperties(const QJsonObject& props, QQuickItem* root) const
+{
+    if (props.isEmpty())
+        return std::unexpected(FindError { ErrInvalidParams, QStringLiteral("Empty property query") });
+
+    auto roots = std::vector<std::pair<QQuickItem*, QString>> {};
+    if (root) {
+        const auto name = root->objectName();
+        roots.emplace_back(root, name.isEmpty() ? itemTypeName(root) : name);
+    } else {
+        if (auto* cr = contentRoot())
+            roots.emplace_back(cr, QString {});
+        if (auto* or_ = overlayRoot())
+            roots.emplace_back(or_, QStringLiteral("overlay"));
+    }
+
+    std::vector<FindResult> matches;
+
+    for (const auto& [searchRoot, prefix] : roots) {
+        std::deque<std::pair<QQuickItem*, QString>> queue;
+        queue.emplace_back(searchRoot, prefix);
+
+        while (!queue.empty()) {
+            auto [item, path] = queue.front();
+            queue.pop_front();
+
+            bool allMatch = true;
+            for (auto it = props.begin(); it != props.end(); ++it) {
+                if (it.key() == QStringLiteral("type")) {
+                    if (!itemTypeName(item).contains(it.value().toString())) {
+                        allMatch = false;
+                        break;
+                    }
+                    continue;
+                }
+                const auto val = item->property(it.key().toLatin1().constData());
+                if (!val.isValid() || QJsonValue::fromVariant(val) != it.value()) {
+                    allMatch = false;
+                    break;
+                }
+            }
+
+            if (allMatch)
+                matches.emplace_back(item, path);
+
+            for (auto* child : effectiveChildren(item)) {
+                const auto childName = child->objectName();
+                auto childPath = path;
+                if (!childName.isEmpty())
+                    childPath = path.isEmpty() ? childName : path + '/' + childName;
+                else
+                    childPath = path.isEmpty() ? itemTypeName(child) : path + '/' + itemTypeName(child);
+                queue.emplace_back(child, childPath);
+            }
+        }
+    }
+
+    if (matches.empty())
+        return std::unexpected(FindError { ErrItemNotFound, QStringLiteral("No items match property query") });
+    if (matches.size() > 1)
+        return std::unexpected(FindError { ErrAmbiguousItem,
+            QStringLiteral("Property query matches %1 items — add more properties to disambiguate").arg(matches.size()) });
+
+    return matches.front();
 }
 
 auto ItemFinder::clickPoint(QQuickItem& item) const -> std::optional<QPoint>

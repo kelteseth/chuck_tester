@@ -29,3 +29,8 @@ compile_commands.json
 __pycache__/
 *.pyc
 .venv/
+uv.lock
+
+# Generated artifacts
+*.png
+.qmlls.ini
