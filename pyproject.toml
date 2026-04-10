@@ -9,6 +9,11 @@ dependencies = [
     "pytest-asyncio>=1.0",
 ]
 
+[dependency-groups]
+docs = [
+    "mkdocs-material>=9.7",
+]
+
 [tool.uv.sources]
 testa = { path = "testa", editable = true }
 
