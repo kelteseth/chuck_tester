@@ -13,7 +13,7 @@ graph LR
     E --> F["Re-run"]
 ```
 
-There's no magic LLM API call embedded in the code. The intelligence lives in a **Copilot skill** (`.github/skills/chuck-repair/SKILL.md`) that teaches any AI agent how to diagnose and fix test failures. The Python side just produces structured failure context.
+There's no magic LLM API call embedded in the code. The intelligence lives in a **Copilot skill** (`chuck/skills/chuck-repair/SKILL.md`) that teaches any AI agent how to diagnose and fix test failures. The Python side just produces structured failure context.
 
 ## Generating a Failure Report
 
