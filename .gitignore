@@ -34,3 +34,6 @@ uv.lock
 # Generated artifacts
 *.png
 .qmlls.ini
+
+# MkDocs
+site/

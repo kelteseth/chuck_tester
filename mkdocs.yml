@@ -1,0 +1,89 @@
+site_name: chuck + testa
+site_description: AI-driven UI testing for Qt/QML applications
+site_url: https://chuck-testa.dev
+repo_url: https://github.com/user/chuck
+repo_name: chuck
+
+theme:
+  name: material
+  palette:
+  - media: "(prefers-color-scheme: light)"
+    scheme: default
+    primary: indigo
+    accent: teal
+    toggle:
+      icon: material/brightness-7
+      name: Switch to dark mode
+  - media: "(prefers-color-scheme: dark)"
+    scheme: slate
+    primary: indigo
+    accent: teal
+    toggle:
+      icon: material/brightness-4
+      name: Switch to light mode
+  features:
+  - content.code.copy
+  - content.code.annotate
+  - content.tabs.link
+  - navigation.instant
+  - navigation.instant.progress
+  - navigation.sections
+  - navigation.expand
+  - navigation.top
+  - navigation.footer
+  - search.suggest
+  - search.highlight
+  - toc.follow
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+- admonition
+- pymdownx.details
+- pymdownx.superfences
+- pymdownx.highlight:
+    anchor_linenums: true
+    line_spans: __span
+    pygments_lang_class: true
+- pymdownx.inlinehilite
+- pymdownx.tabbed:
+    alternate_style: true
+- pymdownx.snippets
+- pymdownx.emoji:
+    emoji_index: !!python/name:material.extensions.emoji.twemoji ""
+    emoji_generator: !!python/name:material.extensions.emoji.to_svg ""
+- attr_list
+- md_in_html
+- tables
+- toc:
+    permalink: true
+
+plugins:
+- search
+
+extra:
+  social:
+  - icon: fontawesome/brands/github
+    link: https://github.com/user/chuck
+
+nav:
+- Home: index.md
+- Getting Started: getting-started.md
+- Chuck (C++):
+  - Overview: chuck/index.md
+  - API Reference: chuck/api.md
+  - Commands: chuck/commands.md
+  - QML Best Practices: chuck/qml-practices.md
+- Testa (Python):
+  - Overview: testa/index.md
+  - Client API: testa/api.md
+  - CLI Reference: testa/cli.md
+  - MCP Server: testa/mcp.md
+- Testing Guide:
+  - Writing Tests: guide/writing-tests.md
+  - Synchronization: guide/synchronization.md
+  - Visual Testing: guide/visual-testing.md
+  - Recording & Replay: guide/recording.md
+  - AI Repair: guide/ai-repair.md
+- Examples:
+  - Todo App: examples/todoapp.md
