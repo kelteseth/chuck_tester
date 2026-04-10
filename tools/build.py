@@ -9,16 +9,16 @@ cmake configure and build steps.
 
 Examples:
     # Windows MSVC debug build
-    uv run build.py --preset windows-debug-qt-6.11.0
+    uv run tools/build.py --preset windows-debug-qt-6.11.0
 
     # Linux GCC debug build
-    uv run build.py --preset linux-debug-qt-6.11.0
+    uv run tools/build.py --preset linux-debug-qt-6.11.0
 
     # macOS Clang release, specific target
-    uv run build.py --preset macos-release-qt-6.11.0 --target tester
+    uv run tools/build.py --preset macos-release-qt-6.11.0 --target tester
 
     # Force reconfigure
-    uv run build.py --preset windows-debug-qt-6.11.0 --configure
+    uv run tools/build.py --preset windows-debug-qt-6.11.0 --configure
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from pathlib import Path
 _SAFE_ARG_RE = re.compile(r"^[a-zA-Z0-9._\-]+$")
 
 SCRIPT_DIR: Path = Path(__file__).resolve().parent
-REPO_ROOT: Path = SCRIPT_DIR
+REPO_ROOT: Path = SCRIPT_DIR.parent
 
 # Maps configure preset -> build preset (loaded from CMakePresets.json)
 _BUILD_PRESET_MAP: dict[str, str] = {}

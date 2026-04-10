@@ -17,7 +17,7 @@ examples/
   minimal/              Bare-minimum QML app with tester
   todoapp/              Full example with C++ model + tests
   text_editor/          Skeleton for AI-driven building
-build.py                Cross-platform CMake build wrapper
+tools/build.py          Cross-platform CMake build wrapper
 CMakePresets.json       Configure/build presets (Windows/Linux/macOS × Debug/Release)
 pyproject.toml          Root workspace: chuck + pytest deps
 docs/                   MkDocs Material documentation site
@@ -26,11 +26,11 @@ docs/                   MkDocs Material documentation site
 ## Building
 
 ```bash
-uv run build.py --preset windows-debug-qt-6.11.0          # full build
-uv run build.py --preset windows-debug-qt-6.11.0 --target todoapp  # single target
+uv run tools/build.py --preset windows-debug-qt-6.11.0          # full build
+uv run tools/build.py --preset windows-debug-qt-6.11.0 --target todoapp  # single target
 ```
 
-On Windows, `build.py` auto-activates the VS Developer Shell. First run after build needs `windeployqt` — see `.agent/skills/cpp-deploy/SKILL.md`.
+On Windows, `tools/build.py` auto-activates the VS Developer Shell. First run after build needs `windeployqt` — see `.agent/skills/cpp-deploy/SKILL.md`.
 
 Presets: `windows-debug-qt-6.11.0`, `windows-release-qt-6.11.0`, `linux-debug-qt-6.11.0`, `linux-release-qt-6.11.0`, `macos-debug-qt-6.11.0`, `macos-release-qt-6.11.0`.
 
@@ -52,7 +52,7 @@ The app must be running with tester enabled before tests execute. Tests do NOT l
 
 | Skill | Location | Purpose |
 |-------|----------|---------|
-| cpp-build | `.agent/skills/cpp-build/` | Build this project with `build.py` and CMake presets |
+| cpp-build | `.agent/skills/cpp-build/` | Build this project with `tools/build.py` and CMake presets |
 | cpp-deploy | `.agent/skills/cpp-deploy/` | Deploy Qt runtime DLLs before first launch |
 | tester-integration | `tester/skills/tester-integration/` | Add tester to a Qt/QML app, objectName conventions |
 | chuck-testing | `chuck/skills/chuck-testing/` | Write tests with ChuckClient, live-validation loop |

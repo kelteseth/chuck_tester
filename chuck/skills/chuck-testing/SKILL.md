@@ -9,7 +9,7 @@ description: 'Write integration tests for Qt/QML apps using the chuck + tester f
 
 When building a Qt/QML app incrementally, use chuck as your live validation tool — not just a way to write test files for humans to run later. After each feature is implemented:
 
-1. Build the target (`uv run build.py --preset <preset> --target <name>`)
+1. Build the target (`uv run tools/build.py --preset <preset> --target <name>`)
 2. Deploy Qt dependencies if this is the first build (see cpp-deploy skill)
 3. Launch the exe and connect in a single Python script — this is the standard validation pattern:
 
