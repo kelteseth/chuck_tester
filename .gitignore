@@ -1,0 +1,31 @@
+# Build output
+build/
+
+# IDE
+.vs/
+.vscode/
+*.user
+CMakeUserPresets.json
+
+# Compiler/linker artifacts
+*.obj
+*.lib
+*.dll
+*.exe
+*.pdb
+*.ilk
+*.o
+*.a
+*.so
+*.dylib
+
+# CMake generated
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
