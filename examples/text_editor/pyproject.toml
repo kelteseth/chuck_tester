@@ -1,0 +1,16 @@
+[project]
+name = "text-editor-tests"
+version = "0.0.0"
+description = "Tests for the text_editor example"
+requires-python = ">=3.12"
+dependencies = [
+    "chuck",
+    "pytest>=8.0",
+    "pytest-asyncio>=1.0",
+]
+
+[tool.uv.sources]
+chuck = { path = "../../chuck", editable = true }
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
