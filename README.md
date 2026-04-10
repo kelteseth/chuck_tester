@@ -79,6 +79,7 @@ uv run --group docs mkdocs serve
 
 - `examples/minimal/` — hello world
 - `examples/todoapp/` — full app with StackView navigation, Material Design, and a test
+- `examples/text_editor/` — barebone skeleton for AI-driven development (see its README for the prompt)
 
 ## License
 
