@@ -54,13 +54,19 @@ def find_vsdevshell() -> Path | None:
     """Find the VS Developer Shell launcher script.
 
     Searches for Launch-VsDevShell.ps1 in the standard Visual Studio 2022
-    installation directories.
+    and 18 (2026) installation directories. Prefers the newest version.
     """
     import glob
 
-    pattern: str = r"C:\Program Files\Microsoft Visual Studio\2022\*\Common7\Tools\Launch-VsDevShell.ps1"
-    matches: list[str] = glob.glob(pattern)
-    return Path(matches[0]) if matches else None
+    result: Path | None = None
+    # Check in order; newer versions override older ones
+    for version in ("2022", "18"):
+        pattern: str = rf"C:\Program Files\Microsoft Visual Studio\{version}\*\Common7\Tools\Launch-VsDevShell.ps1"
+        matches: list[str] = glob.glob(pattern)
+        if matches:
+            result = Path(matches[0])
+
+    return result
 
 
 def run_powershell(script: str) -> int:
@@ -235,7 +241,7 @@ def main() -> int:
         if not vsdevshell:
             print("ERROR: Could not find Launch-VsDevShell.ps1", file=sys.stderr)
             print(
-                "Install Visual Studio 2022 or set the path manually.",
+                "Install Visual Studio 2022 or 18 (2026), or set the path manually.",
                 file=sys.stderr,
             )
             return 1
