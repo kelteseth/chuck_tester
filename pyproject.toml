@@ -1,0 +1,16 @@
+[project]
+name = "chuck-workspace"
+version = "0.0.0"
+description = "Workspace root for running testa tests"
+requires-python = ">=3.12"
+dependencies = [
+    "testa",
+    "pytest>=8.0",
+    "pytest-asyncio>=1.0",
+]
+
+[tool.uv.sources]
+testa = { path = "testa", editable = true }
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

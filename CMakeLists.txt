@@ -4,3 +4,4 @@ project(chuck)
 
 add_subdirectory(chuck)
 add_subdirectory(examples/minimal)
+add_subdirectory(examples/todoapp)

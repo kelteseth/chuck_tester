@@ -473,8 +473,18 @@ QList<QQuickItem*> ItemFinder::effectiveChildren(QQuickItem* item) const
     const auto contentItemVar = item->property("contentItem");
     if (contentItemVar.isValid()) {
         if (auto* contentItem = contentItemVar.value<QQuickItem*>()) {
-            if (contentItem != item && contentItem->parentItem() == item)
-                return contentItem->childItems();
+            if (contentItem != item && contentItem->parentItem() == item) {
+                auto children = contentItem->childItems();
+                // Controls like Page/Dialog expose header/footer outside contentItem
+                for (const auto& prop : {"header", "footer"}) {
+                    const auto v = item->property(prop);
+                    if (v.isValid()) {
+                        if (auto* extra = v.value<QQuickItem*>())
+                            children.append(extra);
+                    }
+                }
+                return children;
+            }
         }
     }
 
