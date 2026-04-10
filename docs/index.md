@@ -4,11 +4,9 @@
 
 Chuck is a C++ library you link into your app. Testa is the Python controller that drives it. Together they let you — or an AI — test Qt/QML interfaces over a simple WebSocket connection.
 
-```
-┌────────────┐  WebSocket / JSON-RPC 2.0  ┌────────────┐
-│   testa    │ ◄────────────────────────► │   chuck    │
-│  (Python)  │        port 1408           │  (C++ lib) │
-└────────────┘                            └────────────┘
+```mermaid
+graph LR
+    A["testa<br/>(Python)"] <-->|"WebSocket / JSON-RPC 2.0<br/>port 1408"| B["chuck<br/>(C++ lib)"]
 ```
 
 ## Why?

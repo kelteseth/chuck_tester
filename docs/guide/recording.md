@@ -130,8 +130,14 @@ The generated script is a starting point — add assertions, helpers, and commen
 
 ## Workflow
 
-```
-Record (AI/MCP) → JSONL → Export → Python test → Edit/polish → Run with pytest
-                    ↓
-              Replay (CI) → Pass/Fail → Repair (if needed)
+```mermaid
+graph LR
+    A["Record<br/>(AI/MCP)"] --> B["JSONL"]
+    B --> C["Export"]
+    C --> D["Python test"]
+    D --> E["Edit/polish"]
+    E --> F["Run with pytest"]
+    B --> G["Replay (CI)"]
+    G --> H["Pass/Fail"]
+    H --> I["Repair<br/>(if needed)"]
 ```

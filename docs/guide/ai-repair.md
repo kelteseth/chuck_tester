@@ -4,8 +4,13 @@ When a test fails, an AI agent can diagnose and fix it using the **testa-repair*
 
 ## How It Works
 
-```
-Test fails → Structured report → AI reads report → AI diagnoses → AI fixes → Re-run
+```mermaid
+graph LR
+    A["Test fails"] --> B["Structured report"]
+    B --> C["AI reads report"]
+    C --> D["AI diagnoses"]
+    D --> E["AI fixes"]
+    E --> F["Re-run"]
 ```
 
 There's no magic LLM API call embedded in the code. The intelligence lives in a **Copilot skill** (`.github/skills/testa-repair/SKILL.md`) that teaches any AI agent how to diagnose and fix test failures. The Python side just produces structured failure context.

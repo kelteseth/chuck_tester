@@ -4,25 +4,18 @@ Chuck is a static C++ library that embeds a WebSocket server in your Qt/QML appl
 
 ## Architecture
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                     Your App Process                          │
-│                                                              │
-│  ┌──────────────────┐    ┌─────────────────────────────────┐ │
-│  │  QQuickWindow     │    │  chuck::ChuckServer             │ │
-│  │  (QML scene)      │◄──│                                  │ │
-│  └──────────────────┘    │  ┌────────────┐ ┌────────────┐  │ │
-│                          │  │ ItemFinder  │ │ PendingWait│  │ │
-│                          │  └────────────┘ └────────────┘  │ │
-│                          │  ┌──────────────────────────┐   │ │
-│                          │  │    CommandHandler         │   │ │
-│                          │  │  click│keys│wait│find│... │   │ │
-│                          │  └──────────────────────────┘   │ │
-│                          └──────────┬──────────────────────┘ │
-└─────────────────────────────────────┼────────────────────────┘
-                                      │ WebSocket (port 1408)
-                                      ▼
-                              External controllers
+```mermaid
+graph TB
+    subgraph app["Your App Process"]
+        window["QQuickWindow<br/>(QML scene)"]
+        subgraph server["chuck::ChuckServer"]
+            handler["CommandHandler<br/>click | keys | wait | find | ..."]
+            finder["ItemFinder"]
+            pending["PendingWait"]
+        end
+        server -->|drives| window
+    end
+    server <-->|"WebSocket (port 1408)"| ext["External controllers"]
 ```
 
 ## Dependencies

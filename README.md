@@ -2,11 +2,9 @@
 
 UI testing for Qt/QML apps. Chuck is a C++ library you link into your app. Testa is the Python side that talks to it.
 
-```
-┌────────────┐  WebSocket   ┌────────────┐
-│   testa    │ ◄──────────► │   chuck    │
-│  (Python)  │  port 1408   │  (C++ lib) │
-└────────────┘              └────────────┘
+```mermaid
+graph LR
+    A["testa<br/>(Python)"] <-->|"WebSocket<br/>port 1408"| B["chuck<br/>(C++ lib)"]
 ```
 
 Chuck embeds a WebSocket server in your app. Testa connects to it and drives the UI — clicking buttons, typing text, reading properties, taking screenshots. Everything goes through JSON-RPC 2.0.
