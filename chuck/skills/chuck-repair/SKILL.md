@@ -1,6 +1,6 @@
 ---
 name: chuck-repair
-description: 'Diagnose and fix failing chuck+tester integration tests. Use when: a test fails with a ChuckError, an assertion fails, a timeout occurs, a visual diff is detected, or any chuck test needs debugging/repair. Covers error diagnosis, context gathering, fix patterns, and re-verification.'
+description: 'Diagnose and fix failing chuck_tester integration tests. Use when: a test fails with a ChuckError, an assertion fails, a timeout occurs, a visual diff is detected, or any chuck test needs debugging/repair. Covers error diagnosis, context gathering, fix patterns, and re-verification.'
 ---
 
 # Repairing Failing Chuck Tests

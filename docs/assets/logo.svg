@@ -17,18 +17,13 @@
   <rect x="495" y="78" width="32.5" height="4" fill="#FF9800"/>
   <rect x="527.5" y="78" width="32.5" height="4" fill="#FF5722"/>
 
-  <!-- "chuck" -->
-  <text x="110" y="65" font-family="'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
-        font-size="56" font-weight="700" letter-spacing="-1"
-        fill="#CDDC39">chuck</text>
-
-  <!-- "tester" -->
-  <text x="320" y="65" font-family="'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
-        font-size="56" font-weight="700" letter-spacing="-1"
-        fill="#CDDC39">tester</text>
+  <!-- "chuck_tester" -->
+  <text x="300" y="65" font-family="'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+        font-size="56" font-weight="700" letter-spacing="-1" text-anchor="middle"
+        fill="#90A4AE">chuck_tester</text>
 
   <!-- Slogan -->
   <text x="300" y="104" font-family="'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
         font-size="15" font-weight="400" font-style="italic" text-anchor="middle"
-        fill="#90A4AE">Is your UI broken? Nope. chuck tester.</text>
+        fill="#90A4AE">Is your UI broken? Nope. chuck_tester.</text>
 </svg>

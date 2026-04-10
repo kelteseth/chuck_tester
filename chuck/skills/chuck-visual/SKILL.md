@@ -1,6 +1,6 @@
 ---
 name: chuck-visual
-description: 'Visual regression testing with chuck+tester. Use when: setting up screenshot baselines, comparing screenshots, tuning SSIM or pHash thresholds, creating mask regions to ignore dynamic content, setting up visual testing in CI, debugging visual diff failures.'
+description: 'Visual regression testing with chuck_tester. Use when: setting up screenshot baselines, comparing screenshots, tuning SSIM or pHash thresholds, creating mask regions to ignore dynamic content, setting up visual testing in CI, debugging visual diff failures.'
 ---
 
 # Visual Regression Testing with Chuck

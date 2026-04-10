@@ -1,4 +1,4 @@
-site_name: chuck + tester
+site_name: chuck_tester
 site_description: AI-driven UI testing for Qt/QML applications
 site_url: https://chuck-tester.dev
 repo_url: https://github.com/kelteseth/chuck_tester

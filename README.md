@@ -1,13 +1,10 @@
-# chuck + tester
+# chuck_tester
+
+<p align="center">
+  <img src="docs/assets/logo.svg" alt="chuck_tester" width="600">
+</p>
 
 UI testing for Qt/QML apps. Tester is a C++ library you link into your app. Chuck is the Python side that talks to it.
-
-```mermaid
-graph LR
-    A["chuck<br/>(Python)"] <-->|"WebSocket<br/>port 1408"| B["tester<br/>(C++ lib)"]
-```
-
-Tester embeds a WebSocket server in your app. Chuck connects to it and drives the UI — clicking buttons, typing text, reading properties, taking screenshots. Everything goes through JSON-RPC 2.0.
 
 ## Quick start
 

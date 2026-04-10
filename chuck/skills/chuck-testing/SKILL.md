@@ -1,9 +1,9 @@
 ---
 name: chuck-testing
-description: 'Write integration tests for Qt/QML apps using the chuck + tester framework. Use when: creating test files, writing pytest async tests, driving QML UI with clicks/keys/waits, handling StackView navigation, waiting for animations, asserting properties, screenshot verification, debugging test failures.'
+description: 'Write integration tests for Qt/QML apps using the chuck_tester framework. Use when: creating test files, writing pytest async tests, driving QML UI with clicks/keys/waits, handling StackView navigation, waiting for animations, asserting properties, screenshot verification, debugging test failures.'
 ---
 
-# Writing Tests with Chuck + Tester
+# Writing Tests with chuck_tester
 
 ## AI-Driven Development Loop
 
