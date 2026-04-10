@@ -5,6 +5,35 @@ description: 'Write integration tests for Qt/QML apps using the chuck + tester f
 
 # Writing Tests with Chuck + Tester
 
+## AI-Driven Development Loop
+
+When building a Qt/QML app incrementally, use chuck as your live validation tool — not just a way to write test files for humans to run later. After each feature is implemented:
+
+1. Build the target (`uv run build.py --preset <preset> --target <name>`)
+2. Launch the exe (see cpp-build skill for Qt DLL PATH requirements)
+3. Connect and assert inline — no pytest file needed at this stage:
+
+```bash
+uv run --directory chuck --extra dev python -c "
+import asyncio
+from chuck import ChuckClient
+
+async def check():
+    async with ChuckClient(port=1408) as app:
+        await app.wait('myItem', property='visible', value=True, timeout=5000)
+        props = await app.get('myLabel', props='text')
+        assert props['text'] == 'expected', props
+        print('PASS')
+        await app.quit()
+
+asyncio.run(check())
+"
+```
+
+4. Fix and rebuild if any assertion fails; only move to the next feature once this passes.
+
+Write the formal `test_*.py` / `test_suite.py` files at the end, after the feature set is complete and live-validated.
+
 ## Architecture
 
 **tester** is a C++ static library linked into the Qt/QML app under test (AUT). It runs a WebSocket server (default port 1408) that accepts JSON-RPC 2.0 commands to find, click, type, wait, and screenshot QML items.

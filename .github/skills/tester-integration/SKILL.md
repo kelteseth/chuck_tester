@@ -184,3 +184,5 @@ You should see the QML tree with your objectNames.
 | Item not found | Missing objectName | Add `objectName` to the QML item |
 | "Item not visible" | Item on a different StackView page | Navigate to the correct page first |
 | Header/footer items missing | Not using Page header/footer | Tester traverses `header` and `footer` QQuickItem properties |
+| `ApplicationWindow` not found | `ApplicationWindow` is a window, not a `QQuickItem` | Wait for a real item inside it (e.g. the first `Page` or `TextArea`) instead |
+| `Action` not found | `Action` is a `QObject`, not a `QQuickItem` | Actions are not in the item tree; find the `MenuItem` that wraps them, or trigger via keyboard shortcut |

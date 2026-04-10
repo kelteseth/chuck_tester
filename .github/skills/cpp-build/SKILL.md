@@ -98,3 +98,22 @@ Verify `CMAKE_PREFIX_PATH` in `CMakePresets.json` points to your Qt installation
 
 ### Build log
 Check `build/<preset>/build.log` for the full compiler output.
+
+## Running the Executable
+
+After building, the exe needs Qt DLLs on `PATH` to start. Add the Qt `bin` directory before launching:
+
+```bash
+# Windows (bash/Git Bash)
+export PATH="/c/Qt/6.11.0/msvc2022_64/bin:$PATH"
+./build/MSVC_64bit_Debug/examples/text_editor/text_editor.exe
+```
+
+```python
+# From a Python script
+import os, subprocess
+env = {**os.environ, "PATH": r"C:\Qt\6.11.0\msvc2022_64\bin;" + os.environ["PATH"]}
+proc = subprocess.Popen([exe_path], env=env)
+```
+
+Without this, the process exits immediately with a missing-DLL error.
