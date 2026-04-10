@@ -56,6 +56,12 @@ def main(argv: list[str] | None = None) -> None:
     p_verify.add_argument("--method", default="ssim", choices=["ssim", "phash", "exact"])
     p_verify.add_argument("--threshold", type=float, default=0.95)
 
+    # --- mcp ---
+    p_mcp = sub.add_parser("mcp", help="Start the MCP server (stdio transport) for AI agents")
+    p_mcp.add_argument("--host", default="127.0.0.1", help="Chuck server host")
+    p_mcp.add_argument("--port", type=int, default=1408, help="Chuck server port")
+    p_mcp.add_argument("--record", default=None, metavar="FILE", help="Record all tool calls to a JSONL file")
+
     args = parser.parse_args(argv)
 
     if args.command is None:
@@ -105,6 +111,11 @@ def main(argv: list[str] | None = None) -> None:
             fail_on_diff=True,
         ))
         sys.exit(0 if ok else 1)
+    elif args.command == "mcp":
+        from .mcp_server import configure, run_server
+
+        configure(host=args.host, port=args.port, record=args.record)
+        run_server()
 
 
 if __name__ == "__main__":
