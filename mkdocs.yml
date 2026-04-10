@@ -9,15 +9,15 @@ theme:
   palette:
   - media: "(prefers-color-scheme: light)"
     scheme: default
-    primary: lime
-    accent: deep purple
+    primary: blue grey
+    accent: lime
     toggle:
       icon: material/brightness-7
       name: Switch to dark mode
   - media: "(prefers-color-scheme: dark)"
     scheme: slate
-    primary: lime
-    accent: deep purple
+    primary: blue grey
+    accent: lime
     toggle:
       icon: material/brightness-4
       name: Switch to light mode
@@ -44,7 +44,7 @@ markdown_extensions:
     custom_fences:
     - name: mermaid
       class: mermaid
-      format: !!python/name:pymdownx.superfences.fence_code_format
+      format: !!python/name:pymdownx.superfences.fence_code_format ""
 - pymdownx.highlight:
     anchor_linenums: true
     line_spans: __span
@@ -64,6 +64,9 @@ markdown_extensions:
 
 plugins:
 - search
+
+extra_css:
+- stylesheets/extra.css
 
 extra:
   social:

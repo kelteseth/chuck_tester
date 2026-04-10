@@ -1,6 +1,6 @@
-# chuck + testa
-
-**AI-driven UI testing for Qt/QML applications.**
+<div style="text-align: center; margin: 2rem 0;">
+  <img src="assets/logo.svg" alt="chuck + testa" style="max-width: 600px; width: 100%;">
+</div>
 
 Chuck is a C++ library you link into your app. Testa is the Python controller that drives it. Together they let you — or an AI — test Qt/QML interfaces over a simple WebSocket connection.
 
@@ -17,6 +17,160 @@ graph LR
 - **Pytest native** — tests are regular async Python, run with `pytest`
 - **Visual regression** — screenshot baselines with SSIM, perceptual hash, and diff images
 - **Self-healing** — when tests break, an AI agent can diagnose and repair them using the testa-repair skill
+
+## How It Works
+
+<div class="step" markdown>
+<div class="step-text" markdown>
+
+### :material-numeric-1-circle: Link chuck into your app
+
+Add three lines of C++ after your QML engine loads. Chuck embeds a WebSocket server right inside your process.
+
+```cpp
+chuck::ChuckServer server(*window);
+server.start();
+```
+
+</div>
+<div class="step-visual" markdown>
+
+```mermaid
+graph TB
+    A["Your Qt App"] --> B["chuck::ChuckServer"]
+    B --> C[":8080 WebSocket ready"]
+```
+
+</div>
+</div>
+
+<div class="step" markdown>
+<div class="step-text" markdown>
+
+### :material-numeric-2-circle: Connect with testa
+
+Testa opens a WebSocket to your app on port 1408 and speaks JSON-RPC 2.0.
+
+```python
+async with TestaClient(port=1408) as app:
+```
+
+</div>
+<div class="step-visual" markdown>
+
+```mermaid
+graph LR
+    A["testa"] -->|"JSON-RPC 2.0"| B["chuck"]
+```
+
+</div>
+</div>
+
+<div class="step" markdown>
+<div class="step-text" markdown>
+
+### :material-numeric-3-circle: Drive the UI
+
+Click buttons, type text, read properties, take screenshots — all by `objectName`.
+
+```python
+await app.click("addBtn")
+await app.keys("titleField", text="Buy milk")
+await app.screenshot()
+```
+
+</div>
+<div class="step-visual" markdown>
+
+```mermaid
+sequenceDiagram
+    testa->>chuck: click("addBtn")
+    chuck-->>testa: ok
+    testa->>chuck: keys("titleField")
+    chuck-->>testa: ok
+    testa->>chuck: screenshot()
+    chuck-->>testa: PNG bytes
+```
+
+</div>
+</div>
+
+<div class="step" markdown>
+<div class="step-text" markdown>
+
+### :material-numeric-4-circle: Assert & verify
+
+Check properties, wait for state changes, compare screenshots against baselines.
+
+```python
+props = await app.get("label_0", props="text")
+assert props["text"] == "Buy milk"
+```
+
+</div>
+<div class="step-visual" markdown>
+
+```mermaid
+graph LR
+    A["get property"] --> B{"text == expected?"}
+    B -->|Yes| C["✓ Pass"]
+    B -->|No| D["✗ Fail"]
+```
+
+</div>
+</div>
+
+<div class="step" markdown>
+<div class="step-text" markdown>
+
+### :material-numeric-5-circle: Let AI help
+
+An AI agent can explore the app via MCP, generate tests from recordings, and repair failures automatically.
+
+```bash
+uv run testa mcp --port 1408
+uv run testa repair session.jsonl
+```
+
+</div>
+<div class="step-visual" markdown>
+
+```mermaid
+graph LR
+    A["AI Agent"] -->|MCP| B["testa"]
+    B -->|WebSocket| C["chuck"]
+    A -->|reads| D["repair report"]
+    A -->|fixes| E["test code"]
+```
+
+</div>
+</div>
+
+<div class="step" markdown>
+<div class="step-text" markdown>
+
+### :material-numeric-6-circle: Run in CI
+
+Tests are regular pytest. Record sessions as JSONL, replay in CI, catch visual regressions.
+
+```bash
+uv run pytest tests/ -v
+```
+
+</div>
+<div class="step-visual" markdown>
+
+```mermaid
+graph LR
+    A["CI Pipeline"] --> B["pytest"]
+    B --> C["replay JSONL"]
+    B --> D["visual diff"]
+    C --> E["✓ / ✗"]
+    D --> E
+```
+
+</div>
+</div>
 
 ## At a Glance
 
