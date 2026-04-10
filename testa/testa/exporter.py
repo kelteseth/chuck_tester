@@ -43,7 +43,7 @@ def _generate_python(steps: list[dict[str, Any]], name: str) -> str:
         "",
         "@pytest.mark.asyncio",
         f"async def test_{_safe_name(name)}():",
-        "    async with TestaClient(port=9223) as app:",
+        "    async with TestaClient(port=1408) as app:",
     ]
 
     for step in steps:

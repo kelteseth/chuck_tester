@@ -18,7 +18,7 @@ class ChuckServer : public QObject {
 
 public:
     struct Config {
-        quint16 port = 9223;
+        quint16 port = 1408;
     };
     explicit ChuckServer(QQuickWindow& window, Config config);
     explicit ChuckServer(QQuickWindow& window);

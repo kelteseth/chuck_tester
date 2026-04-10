@@ -15,15 +15,21 @@ async def replay(
     session_path: str | Path,
     *,
     host: str = "127.0.0.1",
-    port: int = 9223,
+    port: int = 1408,
+    baseline_dir: str | Path | None = None,
+    fail_on_diff: bool = False,
 ) -> bool:
     """Replay a .jsonl session file. Returns True if all steps passed."""
     path = Path(session_path)
     steps = _load_steps(path)
     print(f"Replaying {len(steps)} steps from {path.name}")
 
+    # Default baseline_dir next to the session file
+    if baseline_dir is None:
+        baseline_dir = path.parent / "baselines"
+
     ok = True
-    async with TestaClient(host=host, port=port) as app:
+    async with TestaClient(host=host, port=port, baseline_dir=baseline_dir) as app:
         for i, step in enumerate(steps, 1):
             action = step.pop("action")
             step.pop("ts", None)  # timing is informational
@@ -35,8 +41,32 @@ async def replay(
                 label += f" ({tag})"
 
             try:
+                # Pass tag/verify through for screenshot steps
+                if action == "screenshot" and (tag or verify):
+                    step["tag"] = tag
+                    step["verify"] = verify
+
                 result = await _dispatch(app, action, step)
-                print(f"  {label} ✓")
+
+                # Check verification result
+                if action == "screenshot" and verify and isinstance(result, dict):
+                    match = result.get("match")
+                    score = result.get("score")
+                    if result.get("baseline_created"):
+                        print(f"  {label} ✓ baseline created")
+                    elif match is True:
+                        print(f"  {label} ✓ (score: {score:.4f})")
+                    elif match is False:
+                        msg = result.get("message", "visual mismatch")
+                        print(f"  {label} ✗ {msg}", file=sys.stderr)
+                        if fail_on_diff:
+                            ok = False
+                            break
+                    else:
+                        print(f"  {label} ✓")
+                else:
+                    print(f"  {label} ✓")
+
             except ChuckError as e:
                 print(f"  {label} ✗ {e}", file=sys.stderr)
                 ok = False

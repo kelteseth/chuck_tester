@@ -11,7 +11,7 @@ import traceback
 from .commands import TestaClient
 
 
-async def run_repl(*, host: str = "127.0.0.1", port: int = 9223) -> None:
+async def run_repl(*, host: str = "127.0.0.1", port: int = 1408) -> None:
     """Start an interactive REPL connected to a chuck server."""
     print(f"Connecting to ws://{host}:{port} ...")
 

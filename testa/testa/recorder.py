@@ -13,7 +13,7 @@ class Recorder:
 
     Usage::
 
-        async with TestaClient(port=9223) as app:
+        async with TestaClient(port=1408) as app:
             rec = Recorder("session.jsonl")
             rec.start()
 

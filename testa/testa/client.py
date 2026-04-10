@@ -26,11 +26,11 @@ class Client:
 
     Usage::
 
-        async with Client("ws://127.0.0.1:9223") as c:
+        async with Client("ws://127.0.0.1:1408") as c:
             result = await c.call("click", item="myButton")
     """
 
-    def __init__(self, uri: str = "ws://127.0.0.1:9223") -> None:
+    def __init__(self, uri: str = "ws://127.0.0.1:1408") -> None:
         self._uri = uri
         self._ws: ws_client.ClientConnection | None = None
         self._id_gen = itertools.count(1)

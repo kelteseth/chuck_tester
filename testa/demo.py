@@ -5,7 +5,7 @@ from testa import TestaClient
 
 
 async def demo():
-    async with TestaClient(port=9223) as app:
+    async with TestaClient(port=1408) as app:
         print("Connected to chuck!")
 
         # Inspect the tree

@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 import base64
+import io
 from pathlib import Path
 from typing import Any
 
+from PIL import Image
+
 from .client import Client, ChuckError
+from .screenshots import BaselineStore
+from .visual_diff import CompareResult
 
 
 class TestaClient:
@@ -14,7 +19,7 @@ class TestaClient:
 
     Usage::
 
-        async with TestaClient(port=9223) as app:
+        async with TestaClient(port=1408) as app:
             await app.click("saveBtn")
             await app.keys("nameField", text="hello")
             img = await app.screenshot()
@@ -23,12 +28,14 @@ class TestaClient:
     def __init__(
         self,
         host: str = "127.0.0.1",
-        port: int = 9223,
+        port: int = 1408,
         *,
         uri: str | None = None,
+        baseline_dir: str | Path = "baselines",
     ) -> None:
         self._uri = uri or f"ws://{host}:{port}"
         self._client = Client(self._uri)
+        self._baselines = BaselineStore(baseline_dir)
 
     async def __aenter__(self) -> TestaClient:
         await self._client.connect()
@@ -41,6 +48,11 @@ class TestaClient:
     def raw(self) -> Client:
         """Access the underlying JSON-RPC client for advanced use."""
         return self._client
+
+    @property
+    def baselines(self) -> BaselineStore:
+        """Access the baseline screenshot store."""
+        return self._baselines
 
     # -- commands matching the chuck method table --
 
@@ -143,14 +155,62 @@ class TestaClient:
         self,
         item: str | dict[str, Any] | None = None,
         *,
+        tag: str | None = None,
+        verify: bool = False,
         save_to: str | Path | None = None,
+        method: str = "ssim",
+        threshold: float = 0.95,
+        mask_regions: list[tuple[int, int, int, int]] | None = None,
     ) -> dict[str, Any]:
-        """Capture a screenshot. If *save_to* is given, decode and save the PNG."""
+        """Capture a screenshot, optionally saving and/or verifying against a baseline.
+
+        Args:
+            item: Optional item to crop to.
+            tag: Label for baseline management. Required if *verify* is True.
+            verify: If True, compare against stored baseline for *tag*.
+            save_to: Explicit path to save the PNG to.
+            method: Comparison method ('ssim', 'phash', 'exact').
+            threshold: Minimum similarity score for a match.
+            mask_regions: Regions to ignore during comparison.
+
+        Returns:
+            dict with 'width', 'height', and optionally 'match', 'score' keys.
+        """
         result = await self._client.call("screenshot", item=item)
-        if save_to and "data" in result:
+
+        if "data" not in result:
+            return result
+
+        png_bytes = base64.b64decode(result["data"])
+
+        if save_to:
             path = Path(save_to)
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(base64.b64decode(result["data"]))
+            path.write_bytes(png_bytes)
+
+        if tag:
+            actual = Image.open(io.BytesIO(png_bytes))
+
+            if verify and self._baselines.has_baseline(tag):
+                cmp = self._baselines.verify(
+                    tag,
+                    actual,
+                    method=method,
+                    threshold=threshold,
+                    mask_regions=mask_regions,
+                )
+                result["match"] = cmp.match
+                result["score"] = cmp.score
+                result["method"] = cmp.method
+                if not cmp.match:
+                    result["message"] = cmp.message
+            elif not self._baselines.has_baseline(tag):
+                # No baseline yet — save current as the baseline
+                self._baselines.save_baseline(tag, actual)
+                result["baseline_created"] = True
+
+        # Strip the large base64 payload from the return dict
+        result.pop("data", None)
         return result
 
     async def tree(
