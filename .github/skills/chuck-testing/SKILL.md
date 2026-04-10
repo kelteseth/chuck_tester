@@ -10,13 +10,17 @@ description: 'Write integration tests for Qt/QML apps using the chuck + tester f
 When building a Qt/QML app incrementally, use chuck as your live validation tool — not just a way to write test files for humans to run later. After each feature is implemented:
 
 1. Build the target (`uv run build.py --preset <preset> --target <name>`)
-2. Launch the exe (see cpp-build skill for Qt DLL PATH requirements)
-3. Connect and assert inline — no pytest file needed at this stage:
+2. Deploy Qt dependencies if this is the first build (see cpp-deploy skill)
+3. Launch the exe and connect in a single Python script — this is the standard validation pattern:
 
-```bash
-uv run --directory chuck --extra dev python -c "
-import asyncio
+```python
+# Run with: uv run --directory chuck --extra dev python validate.py
+import asyncio, subprocess, time
 from chuck import ChuckClient
+
+EXE = r"build/MSVC_64bit_Debug/examples/myapp/myapp.exe"  # adjust path
+
+proc = subprocess.Popen([EXE])
 
 async def check():
     async with ChuckClient(port=1408) as app:
@@ -26,9 +30,14 @@ async def check():
         print('PASS')
         await app.quit()
 
+time.sleep(1)  # give the process a moment to bind the port
 asyncio.run(check())
-"
+proc.wait()
 ```
+
+Key points:
+- `time.sleep(1)` is just enough to let the WebSocket server start; `app.wait()` handles the rest
+- Check `proc.poll()` after the sleep — if it returned already, the app crashed (see cpp-build: Debugging startup crashes)
 
 4. Fix and rebuild if any assertion fails; only move to the next feature once this passes.
 

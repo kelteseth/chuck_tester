@@ -101,19 +101,41 @@ Check `build/<preset>/build.log` for the full compiler output.
 
 ## Running the Executable
 
-After building, the exe needs Qt DLLs on `PATH` to start. Add the Qt `bin` directory before launching:
+**First run: deploy Qt dependencies before launching.** Run windeployqt once after each build that adds new Qt modules (see cpp-deploy skill). Without this, QML plugin imports will fail silently and the app will exit immediately.
+
+After deploying, launch the exe directly:
+
+```python
+# Recommended: launch from Python so you can check the exit code
+import subprocess
+exe = r"build\MSVC_64bit_Debug\examples\text_editor\text_editor.exe"
+proc = subprocess.Popen([exe])
+```
 
 ```bash
-# Windows (bash/Git Bash)
-export PATH="/c/Qt/6.11.0/msvc2022_64/bin:$PATH"
+# Or from bash
 ./build/MSVC_64bit_Debug/examples/text_editor/text_editor.exe
 ```
 
+## Debugging Startup Crashes
+
+If the app exits immediately (exit code `-1` / `4294967295`), it's almost always a QML load failure. On Windows, Qt GUI apps have no console so output is invisible by default. Capture it by setting `QT_FORCE_STDERR_LOGGING=1` and piping stderr:
+
 ```python
-# From a Python script
-import os, subprocess
-env = {**os.environ, "PATH": r"C:\Qt\6.11.0\msvc2022_64\bin;" + os.environ["PATH"]}
-proc = subprocess.Popen([exe_path], env=env)
+import subprocess, os, time
+
+exe = r"build\MSVC_64bit_Debug\examples\text_editor\text_editor.exe"
+env = {**os.environ, "QT_FORCE_STDERR_LOGGING": "1"}
+proc = subprocess.Popen([exe], stderr=subprocess.PIPE, env=env)
+time.sleep(2)
+if proc.poll() is not None:
+    print(proc.stderr.read().decode())
 ```
 
-Without this, the process exits immediately with a missing-DLL error.
+Common errors and fixes:
+
+| Error | Fix |
+|-------|-----|
+| `Cannot assign to non-existent property` | Wrong property name for the QML type |
+| `module "X" is not installed` | QML plugin not deployed — run windeployqt |
+| `QQmlApplicationEngine failed to load component` | Syntax error or bad import in a QML file |
