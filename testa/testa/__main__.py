@@ -62,6 +62,13 @@ def main(argv: list[str] | None = None) -> None:
     p_mcp.add_argument("--port", type=int, default=1408, help="Chuck server port")
     p_mcp.add_argument("--record", default=None, metavar="FILE", help="Record all tool calls to a JSONL file")
 
+    # --- repair ---
+    p_repair = sub.add_parser("repair", help="Replay a session, capture failure context for AI repair")
+    p_repair.add_argument("session", help="Path to .jsonl session file")
+    p_repair.add_argument("--host", default="127.0.0.1")
+    p_repair.add_argument("--port", type=int, default=1408)
+    p_repair.add_argument("--report", default=None, metavar="FILE", help="Output path for the repair report JSON")
+
     args = parser.parse_args(argv)
 
     if args.command is None:
@@ -116,6 +123,17 @@ def main(argv: list[str] | None = None) -> None:
 
         configure(host=args.host, port=args.port, record=args.record)
         run_server()
+    elif args.command == "repair":
+        from .replayer import replay
+
+        ok = asyncio.run(replay(
+            args.session,
+            host=args.host,
+            port=args.port,
+            report_path=args.report,
+            fail_on_diff=True,
+        ))
+        sys.exit(0 if ok else 1)
 
 
 if __name__ == "__main__":

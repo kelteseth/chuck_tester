@@ -2,10 +2,15 @@
 
 from .client import Client, ChuckError
 from .commands import TestaClient
+from .replayer import ReplayReport, StepResult
 from .screenshots import BaselineStore
 from .visual_diff import CompareResult
 
-__all__ = ["Client", "ChuckError", "TestaClient", "BaselineStore", "CompareResult"]
+__all__ = [
+    "Client", "ChuckError", "TestaClient",
+    "BaselineStore", "CompareResult",
+    "ReplayReport", "StepResult",
+]
 
 
 def get_mcp_server():
