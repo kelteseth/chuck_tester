@@ -71,6 +71,12 @@ cmake --preset <your-preset>
 cmake --build --preset <your-build-preset>
 ```
 
+## Documentation
+
+```bash
+uv run --group docs mkdocs serve
+```
+
 ## Examples
 
 - `examples/minimal/` — hello world
