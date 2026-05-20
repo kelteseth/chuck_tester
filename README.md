@@ -80,4 +80,9 @@ uv run --group docs mkdocs serve
 
 ## License
 
-AGPL-3.0-only OR LicenseRef-EliasSteurerTachiom
+chuck_tester is dual-licensed:
+
+- **[AGPL-3.0-only](docs/legal/agpl-3.0-only.txt)** for open-source use
+- **[Commercial license](docs/legal/LicenseRef-EliasSteurerTachiom.txt)** for closed-source / commercial use
+
+See [docs/legal/](docs/legal/) for the full terms, CLAs, and contact details.
