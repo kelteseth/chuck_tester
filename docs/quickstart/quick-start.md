@@ -1,4 +1,4 @@
-# Getting Started
+# 🚀 Quick Start
 
 ## Requirements
 
@@ -10,15 +10,27 @@
 
 ### CMake
 
+Option A: installed package
 ```cmake
-# Option A: subdirectory (if tester is in your repo)
-add_subdirectory(path/to/tester)
-target_link_libraries(myapp PRIVATE tester)
-
-# Option B: installed package
 find_package(tester REQUIRED)
 target_link_libraries(myapp PRIVATE tester::tester)
 ```
+
+Option B: FetchContent (downloads the repo at configure time)
+```cmake
+include(FetchContent)
+FetchContent_Declare(tester
+    GIT_REPOSITORY https://github.com/kelteseth/chuck_tester.git
+    GIT_TAG        master        # pin to a tag/SHA for reproducible builds
+    GIT_SHALLOW    TRUE          # skip history, just fetch the tip commit
+    SOURCE_SUBDIR  tester        # use tester/CMakeLists.txt, skip examples
+)
+FetchContent_MakeAvailable(tester)
+target_link_libraries(myapp PRIVATE tester)
+```
+
+!!! note "About `SOURCE_SUBDIR`"
+    FetchContent always downloads the full repo — there's no built-in way to pull only a subfolder. `SOURCE_SUBDIR tester` tells CMake to use `tester/CMakeLists.txt` as the project root so it skips the example apps configured by the top-level `CMakeLists.txt`. `GIT_SHALLOW TRUE` keeps the download small by fetching only the tip commit.
 
 ### C++ — Three Lines
 
@@ -160,7 +172,7 @@ if __name__ == "__main__":
 
 ## Next Steps
 
-- [Tester Commands](tester/commands.md) — full list of what tester can do
-- [Chuck API](chuck/api.md) — all Python methods
-- [Synchronization Patterns](guide/synchronization.md) — handling animations and async operations
-- [Todo App Example](examples/todoapp.md) — a complete worked example
+- [Tester Commands](../tester/commands.md) — full list of what tester can do
+- [Chuck API](../chuck/api.md) — all Python methods
+- [Synchronization Patterns](../guide/synchronization.md) — handling animations and async operations
+- [Todo App Example](../examples/todoapp.md) — a complete worked example

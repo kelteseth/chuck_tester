@@ -75,7 +75,8 @@ extra:
 
 nav:
 - Home: index.md
-- Getting Started: getting-started.md
+- Getting Started:
+  - 🚀 Quick Start: quickstart/quick-start.md
 - Tester (C++):
   - Overview: tester/index.md
   - API Reference: tester/api.md

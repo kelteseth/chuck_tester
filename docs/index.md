@@ -198,7 +198,7 @@ async with ChuckClient(port=1408) as app:
 
 <div class="grid cards" markdown>
 
-- :material-rocket-launch: **[Getting Started](getting-started.md)** — add tester to your app in 5 minutes
+- :material-rocket-launch: **[Quick Start](quickstart/quick-start.md)** — add tester to your app in 5 minutes
 - :material-language-cpp: **[Tester API](tester/api.md)** — C++ public header reference
 - :material-language-python: **[Chuck API](chuck/api.md)** — Python client reference
 - :material-test-tube: **[Writing Tests](guide/writing-tests.md)** — patterns, synchronization, assertions
