@@ -25,17 +25,17 @@ enum class PropsMode : std::uint8_t { All,
     Named,
     Minimal };
 
-QJsonObject collectProperties(QQuickItem* item, PropsMode mode, const QStringList& names = {})
+QJsonObject collectProperties(QObject* object, PropsMode mode, const QStringList& names = {})
 {
     if (mode == PropsMode::Minimal)
         return {};
 
     QJsonObject props;
-    const auto* meta = item->metaObject();
+    const auto* meta = object->metaObject();
 
     if (mode == PropsMode::Named) {
         for (const auto& name : names) {
-            const auto value = item->property(name.toLatin1().constData());
+            const auto value = object->property(name.toLatin1().constData());
             if (!value.isValid())
                 continue;
             auto jv = QJsonValue::fromVariant(value);
@@ -45,13 +45,16 @@ QJsonObject collectProperties(QQuickItem* item, PropsMode mode, const QStringLis
         return props;
     }
 
-    const int startIdx = (mode == PropsMode::Custom)
+    // Custom mode strips QQuickItem's base properties so callers can see only
+    // app-defined ones. For non-QQuickItems (singletons) "custom" is meaningless,
+    // so it degrades to "all".
+    const int startIdx = (mode == PropsMode::Custom && qobject_cast<QQuickItem*>(object))
         ? QQuickItem::staticMetaObject.propertyCount()
         : 0;
 
     for (int i = startIdx; i < meta->propertyCount(); ++i) {
         const auto prop = meta->property(i);
-        auto jv = QJsonValue::fromVariant(prop.read(item));
+        auto jv = QJsonValue::fromVariant(prop.read(object));
         if (!jv.isUndefined())
             props[QString::fromLatin1(prop.name())] = jv;
     }
@@ -81,32 +84,32 @@ PropsFilter parsePropsParam(const QJsonObject& params)
     return { .mode = PropsMode::Named, .names = str.split(',', Qt::SkipEmptyParts) };
 }
 
-QString checkPropsConflict(QQuickItem* item, const PropsFilter& filter)
+QString checkPropsConflict(QObject* object, const PropsFilter& filter)
 {
     if (filter.matchedKeyword.isEmpty())
         return {};
-    if (item->metaObject()->indexOfProperty(filter.matchedKeyword.toLatin1().constData()) >= 0)
+    if (object->metaObject()->indexOfProperty(filter.matchedKeyword.toLatin1().constData()) >= 0)
         return QStringLiteral("Item has property '%1' which conflicts with reserved mode keyword '%2'")
             .arg(filter.matchedKeyword, filter.matchedKeyword.toUpper());
     return {};
 }
 
-QJsonObject itemToJson(QQuickItem* item, const QString& path, const PropsFilter& filter)
+QJsonObject itemToJson(QObject* object, const QString& path, const PropsFilter& filter)
 {
     QJsonObject obj {
-        { QStringLiteral("objectName"), item->objectName() },
-        { QStringLiteral("type"), QString::fromLatin1(item->metaObject()->className()) },
+        { QStringLiteral("objectName"), object->objectName() },
+        { QStringLiteral("type"), QString::fromLatin1(object->metaObject()->className()) },
         { QStringLiteral("path"), path },
     };
 
     if (filter.mode == PropsMode::Minimal) {
-        const auto mandatory = item->property("isMandatory");
+        const auto mandatory = object->property("isMandatory");
         if (mandatory.isValid() && mandatory.toBool())
             obj[QStringLiteral("isMandatory")] = true;
         return obj;
     }
 
-    auto props = collectProperties(item, filter.mode, filter.names);
+    auto props = collectProperties(object, filter.mode, filter.names);
     for (auto it = props.begin(); it != props.end(); ++it) {
         obj[it.key()] = it.value();
     }
@@ -149,6 +152,17 @@ QJsonObject makeErr(int code, const QString& message, const QJsonObject& data = 
 bool isErr(const QJsonObject& obj)
 {
     return obj.contains(QStringLiteral("_err_code"));
+}
+
+// Returns a populated error if `match` resolved to a non-QQuickItem (e.g. a singleton).
+// Input commands (click/keys/drag/swipe/screenshot) require a real QQuickItem.
+QJsonObject requireInteractive(const tester::FindResult& match, const QString& identifier, const char* command)
+{
+    if (match.item)
+        return {};
+    return makeErr(tester::ErrNotInteractive,
+        QStringLiteral("'%1' resolved to a non-interactive target (%2) — '%3' requires a QQuickItem")
+            .arg(identifier, QString::fromLatin1(match.object ? match.object->metaObject()->className() : "null"), QString::fromLatin1(command)));
 }
 
 } // namespace
@@ -288,6 +302,9 @@ QJsonObject CommandHandler::cmdFind(const QJsonObject& params)
         auto rootMatch = resolveItem(params[QStringLiteral("root")]);
         if (!rootMatch)
             return makeErr(rootMatch.error().code, rootMatch.error().message);
+        if (!rootMatch->item)
+            return makeErr(ErrNotInteractive,
+                QStringLiteral("'root' must be a QQuickItem — singletons can't be used as a search root"));
         customRoot = rootMatch->item;
     }
 
@@ -298,7 +315,7 @@ QJsonObject CommandHandler::cmdFind(const QJsonObject& params)
         for (const auto& name : filter.names) {
             const auto nameUtf8 = name.toLatin1();
             const auto found = std::ranges::any_of(items, [&](const auto& fr) {
-                return fr.item->metaObject()->indexOfProperty(nameUtf8.constData()) >= 0;
+                return fr.object->metaObject()->indexOfProperty(nameUtf8.constData()) >= 0;
             });
             if (!found)
                 neverFound.append(name);
@@ -310,10 +327,10 @@ QJsonObject CommandHandler::cmdFind(const QJsonObject& params)
 
     QJsonArray arr;
     for (const auto& fr : items) {
-        const auto conflict = checkPropsConflict(fr.item, filter);
+        const auto conflict = checkPropsConflict(fr.object, filter);
         if (!conflict.isEmpty())
             return makeErr(ErrInvalidParams, conflict);
-        arr.append(itemToJson(fr.item, fr.path, filter));
+        arr.append(itemToJson(fr.object, fr.path, filter));
     }
     return QJsonObject { { QStringLiteral("items"), arr } };
 }
@@ -332,11 +349,11 @@ QJsonObject CommandHandler::cmdGet(const QJsonObject& params)
     const auto filter = parsePropsParam(params);
     if (!filter.error.isEmpty())
         return makeErr(ErrInvalidParams, filter.error);
-    const auto conflict = checkPropsConflict(match->item, filter);
+    const auto conflict = checkPropsConflict(match->object, filter);
     if (!conflict.isEmpty())
         return makeErr(ErrInvalidParams, conflict);
     if (filter.mode == PropsMode::Named) {
-        const auto* meta = match->item->metaObject();
+        const auto* meta = match->object->metaObject();
         QStringList unknown;
         for (const auto& name : filter.names) {
             if (meta->indexOfProperty(name.toLatin1().constData()) < 0)
@@ -347,7 +364,7 @@ QJsonObject CommandHandler::cmdGet(const QJsonObject& params)
                 QStringLiteral("Unknown properties: %1").arg(unknown.join(QStringLiteral(", "))));
     }
 
-    return itemToJson(match->item, match->path, filter);
+    return itemToJson(match->object, match->path, filter);
 }
 
 // --- click ---
@@ -362,6 +379,8 @@ QJsonObject CommandHandler::cmdClick(const QJsonObject& params)
         auto rootMatch = resolveItem(params[QStringLiteral("root")]);
         if (!rootMatch)
             return makeErr(rootMatch.error().code, rootMatch.error().message);
+        if (auto guard = requireInteractive(*rootMatch, QStringLiteral("<root>"), "click"); !guard.isEmpty())
+            return guard;
         customRoot = rootMatch->item;
     }
 
@@ -372,6 +391,8 @@ QJsonObject CommandHandler::cmdClick(const QJsonObject& params)
     const auto identifier = params[QStringLiteral("item")].isString()
         ? params[QStringLiteral("item")].toString()
         : QStringLiteral("<property query>");
+    if (auto guard = requireInteractive(*match, identifier, "click"); !guard.isEmpty())
+        return guard;
     auto errObj = checkAccessible(match->item, identifier, *m_finder);
     if (!errObj.isEmpty())
         return errObj;
@@ -408,41 +429,29 @@ QJsonObject CommandHandler::cmdClick(const QJsonObject& params)
         };
     }
 
-    auto* topmost = topmostMouseItemAt(m_window->contentItem(), *point);
-    bool targetReachable = false;
-    for (auto* cur = topmost; cur; cur = cur->parentItem()) {
-        if (cur == clickTarget) {
-            targetReachable = true;
-            break;
+    // Hit-test for diagnostics only — never substitute a different delivery path.
+    // Direct QCoreApplication::sendEvent bypasses QML's input dispatch, so handlers
+    // wired via MouseArea/Button onClicked silently miss. Always go through the
+    // window so the scene's real hit testing and event propagation run.
+    if (auto* topmost = topmostMouseItemAt(m_window->contentItem(), *point); topmost) {
+        bool reachable = false;
+        for (auto* cur = topmost; cur; cur = cur->parentItem()) {
+            if (cur == clickTarget) {
+                reachable = true;
+                break;
+            }
+        }
+        if (!reachable) {
+            qWarning() << "[tester] click point" << *point << "hits"
+                       << QString::fromLatin1(topmost->metaObject()->className())
+                       << "topmost — target" << clickedName << "may be covered";
         }
     }
 
-    if (targetReachable) {
-        if (params[QStringLiteral("double")].toBool(false))
-            QTest::mouseDClick(m_window, button, Qt::NoModifier, *point, 0);
-        else
-            QTest::mouseClick(m_window, button, Qt::NoModifier, *point, 0);
-    } else {
-        auto localCenter = QPointF(clickTarget->width() / 2.0, clickTarget->height() / 2.0);
-        auto scenePos = clickTarget->mapToScene(localCenter);
-        auto globalPos = clickTarget->mapToGlobal(localCenter);
-
-        if (params[QStringLiteral("double")].toBool(false)) {
-            QMouseEvent dblPress(QEvent::MouseButtonDblClick, localCenter, scenePos, globalPos,
-                button, button, Qt::NoModifier);
-            QMouseEvent dblRelease(QEvent::MouseButtonRelease, localCenter, scenePos, globalPos,
-                button, Qt::NoButton, Qt::NoModifier);
-            QCoreApplication::sendEvent(clickTarget, &dblPress);
-            QCoreApplication::sendEvent(clickTarget, &dblRelease);
-        } else {
-            QMouseEvent press(QEvent::MouseButtonPress, localCenter, scenePos, globalPos,
-                button, button, Qt::NoModifier);
-            QMouseEvent release(QEvent::MouseButtonRelease, localCenter, scenePos, globalPos,
-                button, Qt::NoButton, Qt::NoModifier);
-            QCoreApplication::sendEvent(clickTarget, &press);
-            QCoreApplication::sendEvent(clickTarget, &release);
-        }
-    }
+    if (params[QStringLiteral("double")].toBool(false))
+        QTest::mouseDClick(m_window, button, Qt::NoModifier, *point, 0);
+    else
+        QTest::mouseClick(m_window, button, Qt::NoModifier, *point, 0);
 
     return QJsonObject {
         { QStringLiteral("clicked"), clickedName },
@@ -462,6 +471,8 @@ QJsonObject CommandHandler::cmdDrag(const QJsonObject& params)
         auto rootMatch = resolveItem(params[QStringLiteral("root")]);
         if (!rootMatch)
             return makeErr(rootMatch.error().code, rootMatch.error().message);
+        if (auto guard = requireInteractive(*rootMatch, QStringLiteral("<root>"), "drag"); !guard.isEmpty())
+            return guard;
         customRoot = rootMatch->item;
     }
 
@@ -479,6 +490,10 @@ QJsonObject CommandHandler::cmdDrag(const QJsonObject& params)
         ? params[QStringLiteral("to")].toString()
         : QStringLiteral("<property query>");
 
+    if (auto guard = requireInteractive(*fromMatch, fromLabel, "drag"); !guard.isEmpty())
+        return guard;
+    if (auto guard = requireInteractive(*toMatch, toLabel, "drag"); !guard.isEmpty())
+        return guard;
     auto errFrom = checkAccessible(fromMatch->item, fromLabel, *m_finder);
     if (!errFrom.isEmpty())
         return errFrom;
@@ -494,7 +509,11 @@ QJsonObject CommandHandler::cmdDrag(const QJsonObject& params)
         return makeErr(ErrClickFailed, QStringLiteral("Cannot get click point for drag target"));
 
     QTest::mousePress(m_window, Qt::LeftButton, Qt::NoModifier, *fromPt);
-    QTest::mouseMove(m_window, *toPt, 100);
+    // Skip the mouseMove on zero-distance drags. The 100ms inter-event wait would
+    // otherwise be interpreted as a long-press by controls like Material ToolButton,
+    // suppressing onClicked.
+    if (*fromPt != *toPt)
+        QTest::mouseMove(m_window, *toPt, 100);
     QTest::mouseRelease(m_window, Qt::LeftButton, Qt::NoModifier, *toPt);
 
     return QJsonObject {
@@ -518,6 +537,8 @@ QJsonObject CommandHandler::cmdSwipe(const QJsonObject& params)
     const auto identifier = params[QStringLiteral("item")].isString()
         ? params[QStringLiteral("item")].toString()
         : QStringLiteral("<property query>");
+    if (auto guard = requireInteractive(*match, identifier, "swipe"); !guard.isEmpty())
+        return guard;
     auto errObj = checkAccessible(match->item, identifier, *m_finder);
     if (!errObj.isEmpty())
         return errObj;
@@ -579,6 +600,8 @@ QJsonObject CommandHandler::cmdKeys(const QJsonObject& params)
         auto rootMatch = resolveItem(params[QStringLiteral("root")]);
         if (!rootMatch)
             return makeErr(rootMatch.error().code, rootMatch.error().message);
+        if (auto guard = requireInteractive(*rootMatch, QStringLiteral("<root>"), "keys"); !guard.isEmpty())
+            return guard;
         customRoot = rootMatch->item;
     }
 
@@ -586,6 +609,11 @@ QJsonObject CommandHandler::cmdKeys(const QJsonObject& params)
         auto match = resolveItem(params[QStringLiteral("item")], customRoot);
         if (!match)
             return makeErr(match.error().code, match.error().message);
+        const auto identifier = params[QStringLiteral("item")].isString()
+            ? params[QStringLiteral("item")].toString()
+            : QStringLiteral("<property query>");
+        if (auto guard = requireInteractive(*match, identifier, "keys"); !guard.isEmpty())
+            return guard;
         match->item->forceActiveFocus();
     }
 
@@ -646,6 +674,11 @@ QJsonObject CommandHandler::cmdScreenshot(const QJsonObject& params)
         auto match = resolveItem(params[QStringLiteral("item")]);
         if (!match)
             return makeErr(match.error().code, match.error().message);
+        const auto identifier = params[QStringLiteral("item")].isString()
+            ? params[QStringLiteral("item")].toString()
+            : QStringLiteral("<property query>");
+        if (auto guard = requireInteractive(*match, identifier, "screenshot"); !guard.isEmpty())
+            return guard;
         target = match->item;
     }
 
@@ -689,6 +722,9 @@ QJsonObject CommandHandler::cmdTree(const QJsonObject& params)
         auto rootMatch = resolveItem(params[QStringLiteral("root")]);
         if (!rootMatch)
             return makeErr(rootMatch.error().code, rootMatch.error().message);
+        if (!rootMatch->item)
+            return makeErr(ErrNotInteractive,
+                QStringLiteral("'root' must be a QQuickItem — singletons can't be used as a tree root"));
         root = rootMatch->item;
     }
 
@@ -696,7 +732,7 @@ QJsonObject CommandHandler::cmdTree(const QJsonObject& params)
 
     QJsonArray arr;
     for (const auto& fr : items)
-        arr.append(itemToJson(fr.item, fr.path, filter));
+        arr.append(itemToJson(fr.object, fr.path, filter));
 
     return QJsonObject { { QStringLiteral("items"), arr } };
 }
@@ -732,7 +768,7 @@ void CommandHandler::cmdWait(const QJsonValue& id, const QJsonObject& params, co
     connect(pending.get(), &PendingWait::finished, this, [this](int key) { m_pendingWaits.erase(key); }, Qt::QueuedConnection);
 
     if (match) {
-        pending->waitForProperty(match->item, property, expectedValue, timeoutMs);
+        pending->waitForProperty(match->object, property, expectedValue, timeoutMs);
     } else {
         pending->waitForItem(m_finder, identifier, property, expectedValue, timeoutMs, m_finder->contentRoot(), m_finder->overlayRoot());
     }

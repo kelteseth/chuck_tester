@@ -2,6 +2,7 @@
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QQmlContext>
+#include <QQmlEngine>
 #include <QQmlExpression>
 #include <QQuickItem>
 #include <QQuickWindow>
@@ -11,9 +12,17 @@
 
 namespace tester {
 
-ItemFinder::ItemFinder(QQuickWindow& window)
+ItemFinder::ItemFinder(QQuickWindow& window, QQmlEngine* engine)
     : m_window { &window }
+    , m_engine { engine }
 {
+}
+
+QQmlEngine* ItemFinder::resolveEngine() const
+{
+    if (m_engine)
+        return m_engine;
+    return qmlEngine(m_window);
 }
 
 QQuickItem* ItemFinder::contentRoot() const
@@ -42,6 +51,28 @@ ItemFinder::ParsedIdentifier ItemFinder::parseIdentifier(const QString& identifi
 {
     auto parsed = ParsedIdentifier {};
 
+    // Singleton form: @URI/Type[.prop.prop...]
+    //   URI may contain dots (e.g. MyApp.Components); the first '/' separates URI from type.
+    //   Property chain is dot-separated and dereferences QObject* properties recursively.
+    if (identifier.startsWith(u'@')) {
+        parsed.isSingleton = true;
+        const auto slashIdx = identifier.indexOf(u'/', 1);
+        if (slashIdx < 0) {
+            parsed.singletonUri = identifier.mid(1);
+            return parsed;
+        }
+        parsed.singletonUri = identifier.mid(1, slashIdx - 1);
+
+        const auto tail = identifier.mid(slashIdx + 1);
+        const auto parts = tail.split(u'.');
+        if (!parts.isEmpty()) {
+            parsed.singletonType = parts.first();
+            for (int i = 1; i < parts.size(); ++i)
+                parsed.singletonProps.append(parts[i]);
+        }
+        return parsed;
+    }
+
     static const auto delegateRx = QRegularExpression { QStringLiteral(R"(^(.+)\[(\d+)\]$)") };
     const auto match = delegateRx.match(identifier);
     if (match.hasMatch()) {
@@ -52,6 +83,50 @@ ItemFinder::ParsedIdentifier ItemFinder::parseIdentifier(const QString& identifi
 
     parsed.pathSegments = identifier.split('/');
     return parsed;
+}
+
+// --- Singleton resolution ---
+
+std::expected<QObject*, FindError> ItemFinder::findSingleton(const QString& uri, const QString& typeName) const
+{
+    auto* engine = resolveEngine();
+    if (!engine)
+        return std::unexpected(FindError {
+            ErrItemNotFound,
+            QStringLiteral("Singleton lookup requires a QQmlEngine. Pass one via TesterServer::Config{.engine = &yourEngine} "
+                           "or ensure the window was loaded from QML.") });
+
+    auto* instance = engine->singletonInstance<QObject*>(uri, typeName);
+    if (!instance)
+        return std::unexpected(FindError {
+            ErrItemNotFound,
+            QStringLiteral("Singleton not found: %1/%2 (check the URI/type, and that the singleton has been registered)").arg(uri, typeName) });
+    return instance;
+}
+
+std::expected<QObject*, FindError> ItemFinder::resolveDotted(QObject* root, const QStringList& props) const
+{
+    QObject* current = root;
+    for (const auto& name : props) {
+        if (!current)
+            return std::unexpected(FindError { ErrItemNotFound, QStringLiteral("Null while dereferencing '%1'").arg(name) });
+
+        const auto nameBytes = name.toUtf8();
+        const auto* meta = current->metaObject();
+        if (meta->indexOfProperty(nameBytes.constData()) < 0)
+            return std::unexpected(FindError {
+                ErrPropertyNotFound,
+                QStringLiteral("Property '%1' not found on %2").arg(name, QString::fromLatin1(meta->className())) });
+
+        const auto value = current->property(nameBytes.constData());
+        auto* next = value.value<QObject*>();
+        if (!next)
+            return std::unexpected(FindError {
+                ErrItemNotFound,
+                QStringLiteral("Property '%1' is not a QObject (got %2) — cannot dereference further").arg(name, QString::fromLatin1(value.typeName())) });
+        current = next;
+    }
+    return current;
 }
 
 // --- Tree search ---
@@ -208,6 +283,23 @@ std::expected<FindResult, FindError> ItemFinder::findItem(const QString& identif
 
     const auto parsed = parseIdentifier(identifier);
 
+    if (parsed.isSingleton) {
+        if (parsed.singletonUri.isEmpty() || parsed.singletonType.isEmpty())
+            return std::unexpected(FindError {
+                ErrInvalidParams,
+                QStringLiteral("Singleton identifier must be '@URI/Type[.prop.prop...]', got: %1").arg(identifier) });
+
+        auto singleton = findSingleton(parsed.singletonUri, parsed.singletonType);
+        if (!singleton)
+            return std::unexpected(singleton.error());
+
+        auto resolved = resolveDotted(*singleton, parsed.singletonProps);
+        if (!resolved)
+            return std::unexpected(resolved.error());
+
+        return FindResult { nullptr, *resolved, identifier };
+    }
+
     if (parsed.delegateIndex >= 0) {
         const auto parentName = parsed.pathSegments.join('/');
         auto parentResult = findItem(parentName, root);
@@ -220,6 +312,7 @@ std::expected<FindResult, FindError> ItemFinder::findItem(const QString& identif
                 QStringLiteral("Delegate [%1] not found in %2").arg(parsed.delegateIndex).arg(parentName) });
 
         return FindResult {
+            delegate,
             delegate,
             parentResult->path + QStringLiteral("[%1]").arg(parsed.delegateIndex)
         };
@@ -237,11 +330,11 @@ std::expected<FindResult, FindError> ItemFinder::findItem(const QString& identif
                     return std::unexpected(child.error());
                 current = *child;
             }
-            return FindResult { current, parsed.pathSegments.join('/') };
+            return FindResult { current, current, parsed.pathSegments.join('/') };
         }
         auto result = findByPath(parsed.pathSegments);
         if (result)
-            return FindResult { *result, parsed.pathSegments.join('/') };
+            return FindResult { *result, *result, parsed.pathSegments.join('/') };
         return std::unexpected(result.error());
     }
 
@@ -251,7 +344,7 @@ std::expected<FindResult, FindError> ItemFinder::findItem(const QString& identif
         auto result = findByNameOrType(root, name);
         if (!result)
             return std::unexpected(result.error());
-        return FindResult { *result, name };
+        return FindResult { *result, *result, name };
     }
 
     auto contentResult = findByNameOrType(contentRoot(), name);
@@ -278,7 +371,7 @@ std::expected<FindResult, FindError> ItemFinder::findItem(const QString& identif
     }
 
     if (candidates.size() == 1)
-        return FindResult { candidates.front().item, candidates.front().path };
+        return FindResult { candidates.front().item, candidates.front().item, candidates.front().path };
 
     if (contentResult.error().code == ErrAmbiguousItem)
         return std::unexpected(contentResult.error());
@@ -331,7 +424,7 @@ std::expected<FindResult, FindError> ItemFinder::findByProperties(const QJsonObj
             }
 
             if (allMatch)
-                matches.emplace_back(item, path);
+                matches.emplace_back(item, item, path);
 
             for (auto* child : effectiveChildren(item)) {
                 const auto childName = child->objectName();
@@ -454,7 +547,7 @@ void ItemFinder::collectItems(QQuickItem* root, const QString& currentPath, cons
     bool passesAccessible = !accessibleOnly || (root->isVisible() && root->isEnabled());
 
     if (passesType && passesInteractive && passesAccessible)
-        results.emplace_back(root, path);
+        results.emplace_back(root, root, path);
 
     if (interactiveOnly && isInteractive(root))
         return;
@@ -550,10 +643,18 @@ QQuickItem* ItemFinder::firstInteractiveDescendant(QQuickItem* item) const
 
 bool ItemFinder::isOnScreen(QQuickItem& item) const
 {
-    const auto sceneRect = item.mapRectToScene(QRectF { 0, 0, item.width(), item.height() });
     const auto windowRect = QRectF { 0, 0,
         static_cast<qreal>(m_window->width()), static_cast<qreal>(m_window->height()) };
-    return sceneRect.intersects(windowRect);
+
+    // Use the union of the item's own rect and its children's rect. Composed items
+    // (e.g. a Splitter LineHandle) often declare width=0/height=0 themselves and rely
+    // on children rendered outside their declared bounds for their visual extent —
+    // the own-rect alone would map outside the window even when the user can clearly
+    // see and interact with the item.
+    const auto ownRect = QRectF { 0, 0, item.width(), item.height() };
+    const auto childrenRect = item.childrenRect();
+    const auto combined = ownRect.united(childrenRect);
+    return item.mapRectToScene(combined).intersects(windowRect);
 }
 
 QQuickItem* ItemFinder::activeModalPopup() const

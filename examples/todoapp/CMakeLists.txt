@@ -25,3 +25,5 @@ qt_add_qml_module(todoapp
 )
 
 target_link_libraries(todoapp PRIVATE Qt6::Quick Qt6::Qml Qt6::QuickControls2 tester)
+
+tester_deploy_example(todoapp)

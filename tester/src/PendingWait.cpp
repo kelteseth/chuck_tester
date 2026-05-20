@@ -50,13 +50,13 @@ auto PendingWait::waitForItem(std::shared_ptr<ItemFinder> finder, const QString&
 
         cleanup();
 
-        checkPropertyNow(match->item, property, expectedValue);
+        checkPropertyNow(match->object, property, expectedValue);
         if (m_resolved)
             return;
 
-        m_connections.push_back(connect(match->item, &QObject::destroyed, this, &PendingWait::onTargetDestroyed));
+        m_connections.push_back(connect(match->object, &QObject::destroyed, this, &PendingWait::onTargetDestroyed));
 
-        connectPropertyNotify(match->item, property, expectedValue);
+        connectPropertyNotify(match->object, property, expectedValue);
     };
 
     if (contentRoot) {

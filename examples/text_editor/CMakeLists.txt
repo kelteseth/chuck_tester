@@ -19,3 +19,5 @@ qt_add_qml_module(text_editor
 )
 
 target_link_libraries(text_editor PRIVATE Qt6::Quick Qt6::Qml Qt6::QuickControls2 tester)
+
+tester_deploy_example(text_editor)

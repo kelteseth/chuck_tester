@@ -102,19 +102,60 @@ Page {
 }
 ```
 
-## Popups and Dialogs
+## Popups, Drawers, and Dialogs
 
-Popups live in the overlay tree, separate from the main content tree. Tester searches both trees. Give your dialogs objectNames:
+`Popup`, `Drawer`, and `Dialog` derive from `QObject`, **not** `QQuickItem`. The tree walk only sees `QQuickItem` descendants of the content + overlay roots, so an `objectName` on the popup itself is **invisible** to `find`/`get`/`click`. Once a popup is visible, its inner `contentItem` is reparented into the Overlay — items **inside** its content are then discoverable.
+
+### Pattern: tag the content, not the wrapper
 
 ```qml
+// ✗ Won't be found — Dialog is a QObject
 Dialog {
     objectName: "confirmDialog"
+    contentItem: Label { text: "Are you sure?" }
+}
 
-    Label { objectName: "dialogMessage" }
-
+// ✓ Tag the inner items. Once the dialog opens they live under the overlay tree.
+Dialog {
+    id: confirmDialog
+    contentItem: Label {
+        objectName: "confirmDialogMessage"
+        text: "Are you sure?"
+    }
     footer: DialogButtonBox {
-        Button { objectName: "dialogOk"; text: "OK" }
-        Button { objectName: "dialogCancel"; text: "Cancel" }
+        Button { objectName: "confirmDialogOk"; text: "OK" }
+        Button { objectName: "confirmDialogCancel"; text: "Cancel" }
     }
 }
 ```
+
+### Synchronizing on visibility
+
+Wait on an item inside the popup's content rather than the popup itself:
+
+```python
+await app.click("openDialogBtn")
+# Don't wait on the Dialog — it isn't in the tree.
+# Wait on its content, which appears under the overlay once shown.
+await app.wait("confirmDialogMessage", property="visible", value=True, timeout=2000)
+await app.click("confirmDialogOk")
+```
+
+### Reading popup state
+
+There's currently no first-class way to read properties of the `Drawer`/`Dialog`/`Popup` QObject itself (e.g. `position`, `opened`). Two workarounds:
+
+1. **Mirror the property** on the content item:
+   ```qml
+   Drawer {
+       id: navDrawer
+       contentItem: Item {
+           objectName: "navDrawerContent"
+           property real drawerPosition: navDrawer.position
+           property bool drawerOpened: navDrawer.opened
+       }
+   }
+   ```
+   Then `await app.get("navDrawerContent", props="drawerPosition,drawerOpened")`.
+
+2. **Expose via a singleton** if multiple popups share a state model — see [Singletons](singletons.md) for the `@URI/Type` syntax.

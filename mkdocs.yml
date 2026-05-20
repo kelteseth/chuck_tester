@@ -81,6 +81,7 @@ nav:
   - Overview: tester/index.md
   - API Reference: tester/api.md
   - Commands: tester/commands.md
+  - Singletons: tester/singletons.md
   - QML Best Practices: tester/qml-practices.md
 - Chuck (Python):
   - Overview: chuck/index.md

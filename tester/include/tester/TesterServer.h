@@ -7,6 +7,7 @@
 
 class QWebSocket;
 class QWebSocketServer;
+class QQmlEngine;
 class QQuickWindow;
 
 namespace tester {
@@ -19,6 +20,10 @@ class TesterServer : public QObject {
 public:
     struct Config {
         quint16 port = 1408;
+        // Optional: explicit engine for singleton lookups (@URI/Type identifiers).
+        // If null, ItemFinder falls back to qmlEngine(window) — which only works
+        // when the window was loaded from QML via QQmlApplicationEngine.
+        QQmlEngine* engine = nullptr;
     };
     explicit TesterServer(QQuickWindow& window, Config config);
     explicit TesterServer(QQuickWindow& window);
