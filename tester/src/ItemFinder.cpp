@@ -104,6 +104,30 @@ std::expected<QObject*, FindError> ItemFinder::findSingleton(const QString& uri,
     return instance;
 }
 
+std::expected<QObject*, FindError> ItemFinder::findQObjectByName(const QString& name) const
+{
+    // Filter out QQuickItems — those are the tree walk's responsibility.
+    // We only want to surface QObject types that the scene-graph traversal misses,
+    // chiefly the Popup/Drawer/Dialog/Menu family.
+    const auto matches = m_window->findChildren<QObject*>(name, Qt::FindChildrenRecursively);
+
+    QObject* result = nullptr;
+    int count = 0;
+    for (auto* obj : matches) {
+        if (qobject_cast<QQuickItem*>(obj))
+            continue;
+        result = result ? result : obj;
+        ++count;
+        if (count >= 2)
+            return std::unexpected(FindError {
+                ErrAmbiguousItem,
+                QStringLiteral("'%1' matches %2 non-item QObjects under the window — give one of them a different objectName").arg(name).arg(count) });
+    }
+    if (!result)
+        return std::unexpected(FindError { ErrItemNotFound, QStringLiteral("No non-item QObject matches: %1").arg(name) });
+    return result;
+}
+
 std::expected<QObject*, FindError> ItemFinder::resolveDotted(QObject* root, const QStringList& props) const
 {
     QObject* current = root;
@@ -377,6 +401,13 @@ std::expected<FindResult, FindError> ItemFinder::findItem(const QString& identif
         return std::unexpected(contentResult.error());
     if (overlayResult.error().code == ErrAmbiguousItem)
         return std::unexpected(overlayResult.error());
+
+    // Last resort: maybe it's a Popup/Drawer/Dialog/Menu (QObject, not QQuickItem).
+    // Those don't appear in contentItem()'s child tree even when shown — they live
+    // as QObject children of the window. The visual popupItem in the overlay tree
+    // has its own (usually empty) objectName, so it wouldn't have matched above.
+    if (auto qobj = findQObjectByName(name))
+        return FindResult { nullptr, *qobj, name };
 
     return std::unexpected(FindError { ErrItemNotFound, QStringLiteral("Item not found: %1").arg(name) });
 }

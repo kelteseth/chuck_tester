@@ -80,6 +80,10 @@ private:
     auto findDelegate(QQuickItem* parent, int index) const -> QQuickItem*;
     auto findSingleton(const QString& uri, const QString& typeName) const -> std::expected<QObject*, FindError>;
     auto resolveDotted(QObject* root, const QStringList& props) const -> std::expected<QObject*, FindError>;
+    // Searches QObject children of the window for a non-QQuickItem with the given objectName.
+    // Used to reach Popup/Drawer/Dialog/Menu (all QObject, not QQuickItem) which the tree
+    // walk skips. Returns null when not found, error code AmbiguousItem on multiple matches.
+    auto findQObjectByName(const QString& name) const -> std::expected<QObject*, FindError>;
     auto resolveEngine() const -> QQmlEngine*;
     auto collectItems(QQuickItem* root, const QString& currentPath, const QString& typeFilter, bool interactiveOnly, bool accessibleOnly, int maxDepth, int currentDepth, std::vector<FindResult>& results) const -> void;
     auto effectiveChildren(QQuickItem* item) const -> QList<QQuickItem*>;

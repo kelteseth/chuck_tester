@@ -104,58 +104,75 @@ Page {
 
 ## Popups, Drawers, and Dialogs
 
-`Popup`, `Drawer`, and `Dialog` derive from `QObject`, **not** `QQuickItem`. The tree walk only sees `QQuickItem` descendants of the content + overlay roots, so an `objectName` on the popup itself is **invisible** to `find`/`get`/`click`. Once a popup is visible, its inner `contentItem` is reparented into the Overlay — items **inside** its content are then discoverable.
-
-### Pattern: tag the content, not the wrapper
+`Popup`, `Drawer`, `Dialog`, and `Menu` derive from `QObject`, **not** `QQuickItem`. The scene-graph walk would skip them, but tester falls back to a QObject-children scan of the window — so an `objectName` on the popup itself **is** addressable for `get` and `wait`.
 
 ```qml
-// ✗ Won't be found — Dialog is a QObject
-Dialog {
-    objectName: "confirmDialog"
-    contentItem: Label { text: "Are you sure?" }
+Drawer {
+    id: navDrawer
+    objectName: "navDrawer"    // discoverable even before the drawer opens
+    edge: Qt.LeftEdge
+    contentItem: Label {
+        objectName: "drawerLabel"
+        text: "Drawer content"
+    }
 }
+```
 
-// ✓ Tag the inner items. Once the dialog opens they live under the overlay tree.
+```python
+# Read state before opening
+props = await app.get("navDrawer", props="opened,position")
+assert props["opened"] is False
+
+# Drive the UI, wait for the open transition
+await app.click("openDrawerBtn")
+await app.wait("navDrawer", property="opened", value=True, timeout=2000)
+await app.wait("navDrawer", property="position", value=1.0, timeout=2000)
+
+# Reach into the drawer's content (appears in the overlay tree once shown)
+props = await app.get("drawerLabel", props="text")
+```
+
+### Inner items still need objectNames
+
+The popup wrapper is addressable, but its children are still only discoverable if they have `objectName`s. Tag them too:
+
+```qml
 Dialog {
     id: confirmDialog
+    objectName: "confirmDialog"
+    standardButtons: Dialog.Ok | Dialog.Cancel
     contentItem: Label {
         objectName: "confirmDialogMessage"
         text: "Are you sure?"
     }
-    footer: DialogButtonBox {
-        Button { objectName: "confirmDialogOk"; text: "OK" }
-        Button { objectName: "confirmDialogCancel"; text: "Cancel" }
-    }
 }
 ```
 
-### Synchronizing on visibility
+### What works on a popup (vs. what doesn't)
 
-Wait on an item inside the popup's content rather than the popup itself:
+| Command | Works | Notes |
+|---|---|---|
+| `get`   | ✅ | Reads `opened`, `position`, `visible`, `title`, `modal`, any other `Q_PROPERTY` |
+| `wait`  | ✅ | NOTIFY signal when available, polling fallback otherwise |
+| `click`, `keys`, `drag`, `swipe`, `screenshot` | ❌ | Popups aren't `QQuickItem`s; returns `-32010 NotInteractive`. Drive them via a UI button that calls `popup.open()` / `popup.close()`, or send `Escape` if `closePolicy` allows it |
+| `find`, `tree` | ❌ | Tree commands walk scene-graph items only; popup wrappers don't appear |
+
+### Closing a popup from a test
+
+If your popup has a default `closePolicy` (most do — `CloseOnEscape | CloseOnPressOutside`), sending `Escape` works:
 
 ```python
-await app.click("openDialogBtn")
-# Don't wait on the Dialog — it isn't in the tree.
-# Wait on its content, which appears under the overlay once shown.
-await app.wait("confirmDialogMessage", property="visible", value=True, timeout=2000)
-await app.click("confirmDialogOk")
+await app.keys(key="escape")
+# Wait for both 'opened' AND 'visible' to flip. 'opened' goes false when the close
+# transition starts; 'visible' (and the modal state) only clears when the slide-out
+# animation finishes. Subsequent clicks outside the popup are blocked until then.
+await app.wait("navDrawer", property="opened", value=False, timeout=2000)
+await app.wait("navDrawer", property="visible", value=False, timeout=2000)
 ```
 
-### Reading popup state
+Otherwise drive a close button that calls `popup.close()` from QML.
 
-There's currently no first-class way to read properties of the `Drawer`/`Dialog`/`Popup` QObject itself (e.g. `position`, `opened`). Two workarounds:
+### Caveats
 
-1. **Mirror the property** on the content item:
-   ```qml
-   Drawer {
-       id: navDrawer
-       contentItem: Item {
-           objectName: "navDrawerContent"
-           property real drawerPosition: navDrawer.position
-           property bool drawerOpened: navDrawer.opened
-       }
-   }
-   ```
-   Then `await app.get("navDrawerContent", props="drawerPosition,drawerOpened")`.
-
-2. **Expose via a singleton** if multiple popups share a state model — see [Singletons](singletons.md) for the `@URI/Type` syntax.
+- The QObject fallback is **last resort**: if an `objectName` matches both a `QQuickItem` in the tree **and** a non-item QObject, the tree match wins. Don't reuse the same `objectName` for both.
+- Multiple non-item QObjects sharing a name returns `-32005 AmbiguousItem`. Rename one.

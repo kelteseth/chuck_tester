@@ -40,6 +40,7 @@ endfunction()
 
 add_subdirectory(tester)
 add_subdirectory(examples/minimal)
+add_subdirectory(examples/popup)
 add_subdirectory(examples/singleton)
 add_subdirectory(examples/todoapp)
 add_subdirectory(examples/text_editor)
