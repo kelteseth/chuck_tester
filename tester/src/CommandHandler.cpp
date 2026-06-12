@@ -15,6 +15,7 @@
 #include <QTest>
 #include <QTimer>
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <map>
 
@@ -463,8 +464,15 @@ QJsonObject CommandHandler::cmdClick(const QJsonObject& params)
 
 QJsonObject CommandHandler::cmdDrag(const QJsonObject& params)
 {
-    if (!params.contains(QStringLiteral("from")) || !params.contains(QStringLiteral("to")))
-        return makeErr(ErrInvalidParams, QStringLiteral("Missing 'from' and/or 'to' parameter"));
+    // Target is either another item ("to") or a pixel offset from the source
+    // ("by": [dx, dy]). The offset form is what slider/timeline-handle tests
+    // need - there is usually no item sitting at the drop position.
+    const bool hasTo = params.contains(QStringLiteral("to"));
+    const bool hasBy = params.contains(QStringLiteral("by"));
+    if (!params.contains(QStringLiteral("from")) || (!hasTo && !hasBy))
+        return makeErr(ErrInvalidParams, QStringLiteral("Missing 'from' and either 'to' or 'by' parameter"));
+    if (hasTo && hasBy)
+        return makeErr(ErrInvalidParams, QStringLiteral("'to' and 'by' are mutually exclusive"));
 
     QQuickItem* customRoot = nullptr;
     if (params.contains(QStringLiteral("root"))) {
@@ -479,47 +487,68 @@ QJsonObject CommandHandler::cmdDrag(const QJsonObject& params)
     auto fromMatch = resolveItem(params[QStringLiteral("from")], customRoot);
     if (!fromMatch)
         return makeErr(fromMatch.error().code, fromMatch.error().message);
-    auto toMatch = resolveItem(params[QStringLiteral("to")], customRoot);
-    if (!toMatch)
-        return makeErr(toMatch.error().code, toMatch.error().message);
 
     const auto fromLabel = params[QStringLiteral("from")].isString()
         ? params[QStringLiteral("from")].toString()
         : QStringLiteral("<property query>");
-    const auto toLabel = params[QStringLiteral("to")].isString()
-        ? params[QStringLiteral("to")].toString()
-        : QStringLiteral("<property query>");
-
     if (auto guard = requireInteractive(*fromMatch, fromLabel, "drag"); !guard.isEmpty())
-        return guard;
-    if (auto guard = requireInteractive(*toMatch, toLabel, "drag"); !guard.isEmpty())
         return guard;
     auto errFrom = checkAccessible(fromMatch->item, fromLabel, *m_finder);
     if (!errFrom.isEmpty())
         return errFrom;
-    auto errTo = checkAccessible(toMatch->item, toLabel, *m_finder);
-    if (!errTo.isEmpty())
-        return errTo;
 
     auto fromPt = m_finder->clickPoint(*fromMatch->item);
     if (!fromPt)
         return makeErr(ErrClickFailed, QStringLiteral("Cannot get click point for drag source"));
-    auto toPt = m_finder->clickPoint(*toMatch->item);
-    if (!toPt)
-        return makeErr(ErrClickFailed, QStringLiteral("Cannot get click point for drag target"));
+
+    QPoint endPt;
+    if (hasTo) {
+        auto toMatch = resolveItem(params[QStringLiteral("to")], customRoot);
+        if (!toMatch)
+            return makeErr(toMatch.error().code, toMatch.error().message);
+        const auto toLabel = params[QStringLiteral("to")].isString()
+            ? params[QStringLiteral("to")].toString()
+            : QStringLiteral("<property query>");
+        if (auto guard = requireInteractive(*toMatch, toLabel, "drag"); !guard.isEmpty())
+            return guard;
+        auto errTo = checkAccessible(toMatch->item, toLabel, *m_finder);
+        if (!errTo.isEmpty())
+            return errTo;
+        auto toPt = m_finder->clickPoint(*toMatch->item);
+        if (!toPt)
+            return makeErr(ErrClickFailed, QStringLiteral("Cannot get click point for drag target"));
+        endPt = *toPt;
+    } else {
+        const auto byArr = params[QStringLiteral("by")].toArray();
+        if (byArr.size() != 2 || !byArr[0].isDouble() || !byArr[1].isDouble())
+            return makeErr(ErrInvalidParams, QStringLiteral("'by' must be a [dx, dy] number array"));
+        endPt = *fromPt + QPoint(byArr[0].toInt(), byArr[1].toInt());
+    }
+
+    // Multiple incremental moves, not one jump: DragHandler (and most
+    // gesture recognizers) only engage once consecutive moves exceed the
+    // drag threshold - a single press->move->release reads as a click with
+    // a long hold, never as a drag.
+    const int steps = std::clamp(params[QStringLiteral("steps")].toInt(8), 2, 100);
 
     QTest::mousePress(m_window, Qt::LeftButton, Qt::NoModifier, *fromPt);
-    // Skip the mouseMove on zero-distance drags. The 100ms inter-event wait would
-    // otherwise be interpreted as a long-press by controls like Material ToolButton,
-    // suppressing onClicked.
-    if (*fromPt != *toPt)
-        QTest::mouseMove(m_window, *toPt, 100);
-    QTest::mouseRelease(m_window, Qt::LeftButton, Qt::NoModifier, *toPt);
+    if (*fromPt != endPt) {
+        const QPoint delta = endPt - *fromPt;
+        for (int i = 1; i <= steps; ++i) {
+            const auto t = static_cast<double>(i) / steps;
+            const auto intermediate = QPoint(
+                fromPt->x() + static_cast<int>(std::lround(delta.x() * t)),
+                fromPt->y() + static_cast<int>(std::lround(delta.y() * t)));
+            QTest::mouseMove(m_window, intermediate, 20);
+        }
+    }
+    QTest::mouseRelease(m_window, Qt::LeftButton, Qt::NoModifier, endPt);
 
     return QJsonObject {
         { QStringLiteral("dragged"), true },
+        { QStringLiteral("steps"), steps },
         { QStringLiteral("from"), QJsonArray { fromPt->x(), fromPt->y() } },
-        { QStringLiteral("to"), QJsonArray { toPt->x(), toPt->y() } },
+        { QStringLiteral("to"), QJsonArray { endPt.x(), endPt.y() } },
     };
 }
 

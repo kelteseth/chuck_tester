@@ -109,13 +109,29 @@ class ChuckClient:
     async def drag(
         self,
         from_item: str | dict[str, Any],
-        to_item: str | dict[str, Any],
+        to_item: str | dict[str, Any] | None = None,
         *,
+        by: tuple[int, int] | list[int] | None = None,
+        steps: int | None = None,
         root: str | dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Drag from one item to another."""
-        # 'from' is a Python keyword, so we use from_item/to_item and map them
-        return await self._client.call("drag", **{"from": from_item, "to": to_item, "root": root})
+        """Drag from one item to another item, or by a pixel offset.
+
+        Exactly one of *to_item* or *by* must be given. *by* is a (dx, dy)
+        offset from the source item's center - the natural form for slider
+        and timeline-handle drags where nothing sits at the drop position.
+
+        The gesture is synthesized as press -> *steps* incremental moves ->
+        release so QML DragHandler/gesture recognizers engage properly.
+        """
+        if (to_item is None) == (by is None):
+            raise ValueError("drag() needs exactly one of to_item or by")
+        params: dict[str, Any] = {"from": from_item, "root": root, "steps": steps}
+        if to_item is not None:
+            params["to"] = to_item
+        if by is not None:
+            params["by"] = list(by)
+        return await self._client.call("drag", **params)
 
     async def swipe(
         self,
