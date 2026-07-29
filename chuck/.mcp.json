@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "chuck": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "${CLAUDE_PLUGIN_ROOT}",
+        "chuck",
+        "mcp",
+        "--port",
+        "1408"
+      ]
+    }
+  }
+}

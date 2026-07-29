@@ -1,0 +1,21 @@
+{
+  "name": "chuck-tester",
+  "description": "Agent skills for chuck_tester — experimental automated GUI testing for Qt/QML apps, driven by hand-written tests or an AI agent.",
+  "owner": {
+    "name": "Elias Steurer",
+    "email": "i@kelteseth.net",
+    "url": "https://github.com/kelteseth"
+  },
+  "plugins": [
+    {
+      "name": "chuck",
+      "source": "./chuck",
+      "description": "Write, repair and visually verify Qt/QML integration tests with chuck. Includes the chuck MCP server for AI-driven app exploration."
+    },
+    {
+      "name": "tester",
+      "source": "./tester",
+      "description": "Integrate the tester C++ library into a Qt/QML application so chuck can drive it."
+    }
+  ]
+}

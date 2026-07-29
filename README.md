@@ -9,6 +9,8 @@
 
 UI testing for Qt/QML apps. Tester is a C++ library you link into your app. Chuck is the Python side that talks to it.
 
+Writing GUI tests by hand is a hassle — clicking through the UI to collect objectNames, guessing what to wait for, rewriting half the suite whenever the layout moves. chuck_tester exists so an AI agent can take that work off you: it drives the running app, discovers the UI itself, then writes and repairs the tests. You can still write every test by hand — the API is plain pytest — but that isn't what it's built for. See [Use it with an AI agent](#use-it-with-an-ai-agent).
+
 ## Quick start
 
 Add tester to your app:
@@ -59,6 +61,65 @@ uv run pytest examples/todoapp/test_todoapp.py -v
 - `find` / `tree` — search and inspect the QML tree
 - `screenshot` — capture PNGs, compare against baselines (SSIM, pHash, exact)
 - `quit` — close the app
+
+## Use it with an AI agent
+
+chuck was built for AI-driven testing: the agent drives your running app, sees what it renders, and writes or repairs tests from what it finds.
+
+### Claude Code
+
+Installing the plugin brings the skills and the MCP server in one step:
+
+```
+/plugin marketplace add kelteseth/chuck_tester
+/plugin install chuck@chuck-tester
+/plugin install tester@chuck-tester
+```
+
+That adds five skills, which the agent loads on its own when they're relevant:
+
+| Skill | Covers |
+|-------|--------|
+| `chuck:chuck-testing` | Writing tests, the live-validation loop |
+| `chuck:chuck-repair` | Diagnosing and fixing failing tests |
+| `chuck:chuck-visual` | Screenshot baselines, SSIM/pHash thresholds, masks |
+| `chuck:chuck-mcp-explorer` | Driving the app interactively over MCP |
+| `tester:tester-integration` | Adding tester to an app, objectName conventions |
+
+### Any other MCP client
+
+chuck exposes the tester commands as MCP tools over stdio, so any MCP-capable agent can drive the app:
+
+```json
+{
+    "mcpServers": {
+        "chuck": {
+            "command": "uv",
+            "args": ["run", "chuck", "mcp", "--port", "1408"]
+        }
+    }
+}
+```
+
+### What the agent does with it
+
+With your app running, it can:
+
+- **Explore** — dump the QML tree to learn the UI, then click and type its way through it
+- **Generate tests** — record the exploration and export it as a Python test:
+
+  ```bash
+  uv run chuck mcp --port 1408 --record session.jsonl
+  uv run chuck export session.jsonl --to-python test_flow.py
+  ```
+
+- **Repair** — replay a failing session and read the report to find renamed or moved items:
+
+  ```bash
+  uv run chuck repair session.jsonl --report report.json
+  ```
+
+See [docs/chuck/mcp.md](docs/chuck/mcp.md) and [docs/guide/ai-repair.md](docs/guide/ai-repair.md) for the full workflows, and `examples/text_editor/` for a skeleton app meant to be built this way.
 
 ## Building
 

@@ -1,0 +1,15 @@
+{
+  "name": "tester",
+  "displayName": "tester",
+  "version": "0.1.0",
+  "description": "Integrate the tester C++ library into a Qt/QML application so chuck can drive it.",
+  "author": {
+    "name": "Elias Steurer",
+    "email": "i@kelteseth.net",
+    "url": "https://github.com/kelteseth"
+  },
+  "homepage": "https://github.com/kelteseth/chuck_tester",
+  "repository": "https://github.com/kelteseth/chuck_tester",
+  "license": "AGPL-3.0-only OR LicenseRef-EliasSteurerTachiom",
+  "keywords": ["qt", "qml", "testing", "cmake", "cpp"]
+}

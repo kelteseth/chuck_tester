@@ -1,0 +1,15 @@
+{
+  "name": "chuck",
+  "displayName": "chuck",
+  "version": "0.1.0",
+  "description": "Write, repair and visually verify Qt/QML integration tests with chuck. Includes the chuck MCP server for AI-driven app exploration.",
+  "author": {
+    "name": "Elias Steurer",
+    "email": "i@kelteseth.net",
+    "url": "https://github.com/kelteseth"
+  },
+  "homepage": "https://github.com/kelteseth/chuck_tester",
+  "repository": "https://github.com/kelteseth/chuck_tester",
+  "license": "AGPL-3.0-only OR LicenseRef-EliasSteurerTachiom",
+  "keywords": ["qt", "qml", "testing", "gui", "pytest", "visual-regression"]
+}
