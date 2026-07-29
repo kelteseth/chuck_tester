@@ -1,8 +1,11 @@
-# chuck_tester
-
 <p align="center">
   <img src="docs/assets/logo.svg" alt="chuck_tester" width="600">
 </p>
+
+> [!WARNING]
+> **Experimental.** chuck_tester is an experimental tool for automated GUI testing — driven either by hand-written tests or by an AI agent. The API is unstable and may change without notice.
+>
+> It is currently being tested in [ScreenPlay](https://screen-play.app/), an Open Source Live-Wallpaper app for Windows and OSX.
 
 UI testing for Qt/QML apps. Tester is a C++ library you link into your app. Chuck is the Python side that talks to it.
 
