@@ -24,6 +24,10 @@ public:
         // If null, ItemFinder falls back to qmlEngine(window) — which only works
         // when the window was loaded from QML via QQmlApplicationEngine.
         QQmlEngine* engine = nullptr;
+        // Allow 'set' (write properties) and 'invoke' (call methods/QML functions).
+        // Both run arbitrary app code on behalf of the client; disable if the
+        // test client must stay limited to simulated input.
+        bool allowScripting = true;
     };
     explicit TesterServer(QQuickWindow& window, Config config);
     explicit TesterServer(QQuickWindow& window);

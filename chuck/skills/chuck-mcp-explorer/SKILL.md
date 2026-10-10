@@ -22,19 +22,26 @@ Chuck provides a FastMCP server that exposes all chuck commands as MCP tools. An
 
 | Tool | Purpose | Key Parameters |
 |------|---------|---------------|
-| `chuck_tree` | Dump the QML visual tree | `depth` |
-| `chuck_find` | Find items matching criteria | `objectName`, `text`, `interactive` |
-| `chuck_get_property` | Read a QML property | `objectName`, `property` |
-| `chuck_click` | Click an item | `objectName` |
-| `chuck_keys` | Type text into focused item | `text` |
-| `chuck_shortcut` | Fire a keyboard shortcut | `sequence` (e.g. `"Ctrl+S"`) |
-| `chuck_wait_property` | Wait for a property value | `objectName`, `property`, `value`, `timeout` |
-| `chuck_screenshot` | Capture the screen | — |
-| `chuck_drag` | Drag from one point to another | `startX`, `startY`, `endX`, `endY` |
-| `chuck_swipe` | Swipe gesture | `objectName`, `direction` |
+| `chuck_tree` | Dump the QML visual tree | `root`, `depth`, `props` |
+| `chuck_find` | Find items matching criteria | `type`, `interactive`, `root`, `props` |
+| `chuck_get` | Read properties | `item`, `props` |
+| `chuck_wait` | Wait for an item or property value | `item`, `property`, `value`, `timeout` |
+| `chuck_click` | Click an item | `item`, `button`, `double`, `hold` |
+| `chuck_keys` | Type text, send a key or a shortcut | `item`, `text` / `key` / `shortcut` |
+| `chuck_drag` | Drag to an item or by an offset | `from_item`, `to_item` / `by`, `steps` |
+| `chuck_swipe` | Swipe gesture | `item`, `direction`, `distance` |
+| `chuck_hover` | Hover an item (no button) | `item` + `by`, or `point` |
+| `chuck_scroll` | Mouse-wheel scroll | `item`, `direction`, `steps`, `modifiers` |
+| `chuck_window` | Window state/flags/geometry | `state`, `frameless`, `stay_on_top`, `width`, `height`, `x`, `y` |
+| `chuck_set` | Write a property (removes its binding) | `item`, `property`, `value` |
+| `chuck_invoke` | Call a QML function / Q_INVOKABLE | `item`, `method`, `args` |
+| `chuck_screenshot` | Capture the window or an item | `item`, `tag`, `verify` |
 | `chuck_quit` | Close the application | — |
-| `chuck_start_recording` | Begin recording interactions | — |
-| `chuck_stop_recording` | Stop and return JSONL | — |
+
+Recording is not a tool: start the server with `--record session.jsonl` and every tool call is logged.
+
+Prefer `chuck_set`/`chuck_invoke` to reach a state quickly (switch theme, open a page) and
+real input (`click`, `hover`, ...) for the behavior under test.
 
 ## Setting Up the MCP Server
 

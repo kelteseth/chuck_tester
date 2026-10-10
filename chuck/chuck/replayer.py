@@ -193,9 +193,19 @@ async def _dispatch(app: ChuckClient, action: str, params: dict[str, Any]) -> An
         case "click":
             return await app.click(params.pop("item"), **params)
         case "drag":
-            return await app.drag(params.pop("from"), params.pop("to"), **params)
+            return await app.drag(params.pop("from"), params.pop("to", None), **params)
         case "swipe":
             return await app.swipe(params.pop("item"), **params)
+        case "hover":
+            return await app.hover(params.pop("item", None), **params)
+        case "scroll":
+            return await app.scroll(params.pop("item"), **params)
+        case "window":
+            return await app.window(**params)
+        case "set":
+            return await app.set(params["item"], params["property"], params.get("value"))
+        case "invoke":
+            return await app.invoke(params["item"], params["method"], *params.get("args", []))
         case "keys":
             return await app.keys(params.pop("item", None), **params)
         case "screenshot":

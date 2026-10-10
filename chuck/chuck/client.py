@@ -68,7 +68,7 @@ class Client:
 
     # -- public API --
 
-    async def call(self, method: str, **params: Any) -> Any:
+    async def call(self, method: str, /, **params: Any) -> Any:
         """Send a JSON-RPC 2.0 request and return the result.
 
         Raises ChuckError on error responses.
@@ -91,7 +91,7 @@ class Client:
         await self._ws.send(json.dumps(request))
         return await future
 
-    async def notify(self, method: str, **params: Any) -> None:
+    async def notify(self, method: str, /, **params: Any) -> None:
         """Send a JSON-RPC 2.0 notification (no id, no response expected)."""
         if not self._ws:
             raise RuntimeError("Not connected")

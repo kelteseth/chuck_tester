@@ -409,6 +409,12 @@ std::expected<FindResult, FindError> ItemFinder::findItem(const QString& identif
     if (auto qobj = findQObjectByName(name))
         return FindResult { nullptr, *qobj, name };
 
+    // The window itself (e.g. ApplicationWindow { objectName: "root" }) isn't in
+    // any item tree either. Apps often keep navigation helpers and state on it,
+    // which is what get/set/invoke want to reach.
+    if (m_window->objectName() == name)
+        return FindResult { nullptr, m_window, name };
+
     return std::unexpected(FindError { ErrItemNotFound, QStringLiteral("Item not found: %1").arg(name) });
 }
 

@@ -32,6 +32,8 @@ inline constexpr int ErrPropertyNotFound = -32007;
 inline constexpr int ErrClickFailed = -32008;
 inline constexpr int ErrScreenshotFailed = -32009;
 inline constexpr int ErrNotInteractive = -32010;
+inline constexpr int ErrScriptingDisabled = -32011;
+inline constexpr int ErrInvokeFailed = -32012;
 
 // item is null when the result is a singleton (or any non-QQuickItem QObject);
 // object is always set. Tree results have item == object.
@@ -63,6 +65,7 @@ public:
     auto contentRoot() const -> QQuickItem*;
     auto overlayRoot() const -> QQuickItem*;
     auto firstInteractiveDescendant(QQuickItem* item) const -> QQuickItem*;
+    auto resolveEngine() const -> QQmlEngine*;
 
 private:
     struct ParsedIdentifier {
@@ -84,7 +87,6 @@ private:
     // Used to reach Popup/Drawer/Dialog/Menu (all QObject, not QQuickItem) which the tree
     // walk skips. Returns null when not found, error code AmbiguousItem on multiple matches.
     auto findQObjectByName(const QString& name) const -> std::expected<QObject*, FindError>;
-    auto resolveEngine() const -> QQmlEngine*;
     auto collectItems(QQuickItem* root, const QString& currentPath, const QString& typeFilter, bool interactiveOnly, bool accessibleOnly, int maxDepth, int currentDepth, std::vector<FindResult>& results) const -> void;
     auto effectiveChildren(QQuickItem* item) const -> QList<QQuickItem*>;
     auto isInteractive(QQuickItem* item) const -> bool;

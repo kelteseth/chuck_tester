@@ -12,7 +12,7 @@ namespace tester {
 
 TesterServer::TesterServer(QQuickWindow& window, Config config)
     : m_server { std::make_unique<QWebSocketServer>(QStringLiteral("Tester Automation"), QWebSocketServer::NonSecureMode) }
-    , m_handler { std::make_unique<CommandHandler>(window, std::make_shared<ItemFinder>(window, config.engine)) }
+    , m_handler { std::make_unique<CommandHandler>(window, std::make_shared<ItemFinder>(window, config.engine), config.allowScripting) }
     , m_port { config.port }
 {
 }

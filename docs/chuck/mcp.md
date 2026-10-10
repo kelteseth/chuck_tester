@@ -43,10 +43,17 @@ Add to your MCP client configuration (e.g., VS Code `settings.json` or Claude De
 | `chuck_get` | Read properties of an item |
 | `chuck_click` | Click an item |
 | `chuck_keys` | Type text / send key / trigger shortcut |
+| `chuck_drag` | Drag to an item or by a pixel offset |
 | `chuck_swipe` | Swipe gesture |
-| `chuck_screenshot` | Capture screenshot (returned as image) |
+| `chuck_hover` | Move the mouse over an item (hover effects) |
+| `chuck_scroll` | Mouse-wheel scroll |
+| `chuck_window` | Window state (maximized/fullscreen/...), frameless, size, position |
+| `chuck_set` | Write a property |
+| `chuck_invoke` | Call a QML function / Q_INVOKABLE |
+| `chuck_screenshot` | Capture screenshot (returned as image); `tag` + `verify` compare against a baseline |
 | `chuck_wait` | Wait for item or property |
 | `chuck_tree` | Dump the QML tree |
+| `chuck_quit` | Close the app |
 
 ## AI Workflows
 

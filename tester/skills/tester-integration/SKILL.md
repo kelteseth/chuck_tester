@@ -62,6 +62,11 @@ int main(int argc, char *argv[])
 tester::TesterServer server(*window, {.port = 9223});
 ```
 
+**Disable `set`/`invoke`** (they run app code for the client; on by default):
+```cpp
+tester::TesterServer server(*window, {.allowScripting = false});
+```
+
 **Important:** Create the TesterServer AFTER the engine loads and the window exists. The server must be on the stack (or have sufficient lifetime) to outlive `app.exec()`.
 
 ## Step 3: Add objectNames to QML

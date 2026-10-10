@@ -44,7 +44,9 @@ await app.get("@MyApp.Components/Theme", props="primaryColor")
 |---|---|---|
 | `get`   | ✅ | Reads any `Q_PROPERTY` via the meta-object API |
 | `wait`  | ✅ | Uses NOTIFY signal when available, polling fallback otherwise |
-| `click`, `keys`, `drag`, `swipe`, `screenshot` | ❌ | Returns error `-32010 NotInteractive` — singletons aren't `QQuickItem`s |
+| `set`   | ✅ | Writes any writable property |
+| `invoke` | ✅ | Calls `Q_INVOKABLE`s, slots and QML functions |
+| `click`, `keys`, `drag`, `swipe`, `hover`, `scroll`, `screenshot` | ❌ | Returns error `-32010 NotInteractive` — singletons aren't `QQuickItem`s |
 | `find`, `tree` | ❌ | These walk the scene graph; the engine has no public "list all singletons" API |
 
 ## Requirements
@@ -84,5 +86,5 @@ Both approaches can coexist in the same app.
 |---|---|
 | `-32001 ItemNotFound` | Singleton not registered, or a dotted property returned null / non-QObject |
 | `-32007 PropertyNotFound` | Dotted segment isn't a property of the current object |
-| `-32010 NotInteractive` | Tried to `click`/`keys`/`drag`/`swipe`/`screenshot` on a singleton |
+| `-32010 NotInteractive` | Tried to `click`/`keys`/`drag`/`swipe`/`hover`/`scroll`/`screenshot` on a singleton |
 | `-32602 InvalidParams` | Identifier malformed (e.g., `@URI` without a `/Type`) |

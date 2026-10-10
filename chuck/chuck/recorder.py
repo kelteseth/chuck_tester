@@ -37,7 +37,7 @@ class Recorder:
             self._file.close()
             self._file = None
 
-    def _write(self, action: str, **fields: Any) -> None:
+    def _write(self, action: str, *, keep_none: tuple[str, ...] = (), **fields: Any) -> None:
         if not self._file:
             return
         entry: dict[str, Any] = {
@@ -45,7 +45,7 @@ class Recorder:
             "action": action,
         }
         for k, v in fields.items():
-            if v is not None:
+            if v is not None or k in keep_none:
                 entry[k] = v
         self._file.write(json.dumps(entry, ensure_ascii=False) + "\n")
         self._file.flush()
@@ -57,14 +57,45 @@ class Recorder:
         self._write("click", item=item, button=button, double=double or None, hold=hold)
         return result
 
-    async def drag(self, app, from_item, to_item, *, root=None):
-        result = await app.drag(from_item, to_item, root=root)
-        self._write("drag", **{"from": from_item, "to": to_item})
+    async def drag(self, app, from_item, to_item=None, *, by=None, steps=None, root=None):
+        result = await app.drag(from_item, to_item, by=by, steps=steps, root=root)
+        self._write("drag", **{"from": from_item, "to": to_item},
+                    by=list(by) if by is not None else None, steps=steps, root=root)
         return result
 
     async def swipe(self, app, item, *, direction="up", distance=200):
         result = await app.swipe(item, direction=direction, distance=distance)
         self._write("swipe", item=item, direction=direction, distance=distance)
+        return result
+
+    async def hover(self, app, item=None, *, by=None, point=None, root=None):
+        result = await app.hover(item, by=by, point=point, root=root)
+        self._write("hover", item=item, by=list(by) if by is not None else None,
+                    point=list(point) if point is not None else None, root=root)
+        return result
+
+    async def scroll(self, app, item, *, direction="down", steps=1, modifiers=None, root=None):
+        result = await app.scroll(item, direction=direction, steps=steps, modifiers=modifiers, root=root)
+        self._write("scroll", item=item, direction=direction, steps=steps, modifiers=modifiers, root=root)
+        return result
+
+    async def window(self, app, *, state=None, frameless=None, stay_on_top=None,
+                     width=None, height=None, x=None, y=None):
+        result = await app.window(state=state, frameless=frameless, stay_on_top=stay_on_top,
+                                  width=width, height=height, x=x, y=y)
+        self._write("window", state=state, frameless=frameless, stay_on_top=stay_on_top,
+                    width=width, height=height, x=x, y=y)
+        return result
+
+    async def set(self, app, item, property, value):
+        result = await app.set(item, property, value)
+        # null is a legitimate value to set, so keep it in the log
+        self._write("set", item=item, property=property, value=value, keep_none=("value",))
+        return result
+
+    async def invoke(self, app, item, method, *args):
+        result = await app.invoke(item, method, *args)
+        self._write("invoke", item=item, method=method, args=list(args))
         return result
 
     async def keys(self, app, item=None, *, text=None, key=None, shortcut=None, root=None):

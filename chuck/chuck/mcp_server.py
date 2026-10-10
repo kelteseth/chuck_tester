@@ -16,6 +16,7 @@ lifespan mechanism.
 from __future__ import annotations
 
 import base64
+import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
@@ -219,34 +220,196 @@ async def chuck_swipe(
 
 
 @mcp.tool()
+async def chuck_drag(
+    ctx,
+    from_item: str,
+    to_item: str | None = None,
+    by: list[int] | None = None,
+    steps: int | None = None,
+    root: str | None = None,
+) -> dict[str, Any]:
+    """Drag from one QML item to another, or by a pixel offset.
+
+    Args:
+        from_item: objectName of the item to start the drag on.
+        to_item: objectName of the item to drop on. Exclusive with *by*.
+        by: [dx, dy] pixel offset from the source item's center. Exclusive with *to_item*.
+        steps: Number of intermediate mouse moves (default 8).
+        root: objectName of a root item to search from.
+    """
+    app, rec = _ctx_app(ctx)
+    if rec:
+        return await rec.drag(app, from_item, to_item, by=by, steps=steps, root=root)
+    return await app.drag(from_item, to_item, by=by, steps=steps, root=root)
+
+
+@mcp.tool()
+async def chuck_hover(
+    ctx,
+    item: str | None = None,
+    by: list[int] | None = None,
+    point: list[int] | None = None,
+    root: str | None = None,
+) -> dict[str, Any]:
+    """Move the mouse over a QML item (no button pressed) to trigger hover effects.
+
+    To end a hover, hover another item or a window point.
+
+    Args:
+        item: objectName of the item to hover. Exclusive with *point*.
+        by: [dx, dy] offset from the item's center.
+        point: [x, y] window coordinates to move to instead of an item.
+        root: objectName of a root item to search from.
+    """
+    app, rec = _ctx_app(ctx)
+    if rec:
+        return await rec.hover(app, item, by=by, point=point, root=root)
+    return await app.hover(item, by=by, point=point, root=root)
+
+
+@mcp.tool()
+async def chuck_scroll(
+    ctx,
+    item: str,
+    direction: str = "down",
+    steps: int = 1,
+    modifiers: str | None = None,
+    root: str | None = None,
+) -> dict[str, Any]:
+    """Turn the mouse wheel over a QML item.
+
+    Flickables animate wheel scrolling; use chuck_wait on contentY or
+    moving=false before reading the final position.
+
+    Args:
+        item: objectName of the item under the wheel.
+        direction: "up", "down", "left" or "right".
+        steps: Number of wheel notches.
+        modifiers: Held modifiers, e.g. "Ctrl" or "Ctrl+Shift".
+        root: objectName of a root item to search from.
+    """
+    app, rec = _ctx_app(ctx)
+    if rec:
+        return await rec.scroll(app, item, direction=direction, steps=steps, modifiers=modifiers, root=root)
+    return await app.scroll(item, direction=direction, steps=steps, modifiers=modifiers, root=root)
+
+
+@mcp.tool()
+async def chuck_window(
+    ctx,
+    state: str | None = None,
+    frameless: bool | None = None,
+    stay_on_top: bool | None = None,
+    width: int | None = None,
+    height: int | None = None,
+    x: int | None = None,
+    y: int | None = None,
+) -> dict[str, Any]:
+    """Change the application window's state, flags or geometry, e.g. to check layouts at different sizes.
+
+    Call with no arguments to just read the current values. Returns the
+    window's actual state/flags/geometry afterwards (the window manager may
+    clamp or delay a request).
+
+    Args:
+        state: "normal", "maximized", "minimized" or "fullscreen".
+        frameless: Remove (true) or restore (false) the title bar and borders.
+        stay_on_top: Keep the window above other windows.
+        width: New width in pixels (implies state "normal").
+        height: New height in pixels (implies state "normal").
+        x: New x position in screen coordinates.
+        y: New y position in screen coordinates.
+    """
+    app, rec = _ctx_app(ctx)
+    kwargs: dict[str, Any] = dict(
+        state=state, frameless=frameless, stay_on_top=stay_on_top,
+        width=width, height=height, x=x, y=y,
+    )
+    if rec:
+        return await rec.window(app, **kwargs)
+    return await app.window(**kwargs)
+
+
+@mcp.tool()
+async def chuck_set(ctx, item: str, property: str, value: Any) -> dict[str, Any]:
+    """Write a property on a QML item or singleton (e.g. switch theme, jump to a page).
+
+    Replaces any binding on that property. Grouped names like
+    "font.pixelSize" work. Returns the previous and new value.
+
+    Args:
+        item: objectName of the item, or a singleton identifier.
+        property: Property name.
+        value: New value (JSON number, string, bool, list or object).
+    """
+    app, rec = _ctx_app(ctx)
+    if rec:
+        return await rec.set(app, item, property, value)
+    return await app.set(item, property, value)
+
+
+@mcp.tool()
+async def chuck_invoke(
+    ctx,
+    item: str,
+    method: str,
+    args: list[Any] | None = None,
+) -> Any:
+    """Call a QML function, Q_INVOKABLE, slot or signal on an item or singleton.
+
+    Args:
+        item: objectName of the item, or a singleton identifier.
+        method: Method name.
+        args: Positional arguments.
+    """
+    app, rec = _ctx_app(ctx)
+    if rec:
+        return await rec.invoke(app, item, method, *(args or []))
+    return await app.invoke(item, method, *(args or []))
+
+
+@mcp.tool(structured_output=False)
 async def chuck_screenshot(
     ctx,
     item: str | None = None,
     tag: str | None = None,
-) -> Image:
+    verify: bool = False,
+    method: str = "ssim",
+    threshold: float = 0.95,
+) -> Image | list[Image | str]:
     """Capture a screenshot of the application window (or a specific item).
 
     Returns the screenshot as an image that the AI can see and analyze.
+    With *tag*, the first capture is saved as that tag's baseline; with
+    *verify*, later captures are compared to it and the comparison result
+    (match, score, message) is returned as JSON text next to the image.
 
     Args:
         item: objectName of a specific item to capture. Omit for full window.
-        tag: Optional label for baseline management.
+        tag: Label for baseline management.
+        verify: Compare against the stored baseline for *tag*.
+        method: Comparison method ("ssim", "phash" or "exact").
+        threshold: Minimum similarity score for a match.
     """
     app, rec = _ctx_app(ctx)
 
-    # Call through recorder if active (for JSONL logging)
+    result = await app.raw.call("screenshot", item=item)
     if rec:
-        await rec.screenshot(app, item, tag=tag)
-
-    # Get the raw screenshot with base64 data
-    result = await app._client.call("screenshot", item=item)
+        rec._write("screenshot", item=item, tag=tag, verify=verify or None)
 
     if "data" not in result:
         # Return a placeholder if no image data
         return Image(data=b"", format="png")
 
     png_bytes = base64.b64decode(result["data"])
-    return Image(data=png_bytes, format="png")
+    image = Image(data=png_bytes, format="png")
+    if not tag:
+        return image
+
+    cmp = app.check_baseline(png_bytes, tag, verify=verify, method=method, threshold=threshold)
+    if not cmp:
+        return image
+    return [image, json.dumps(cmp)]
 
 
 @mcp.tool()
@@ -294,6 +457,15 @@ async def chuck_tree(
     if rec:
         rec._write("tree", root=root, depth=depth, props=props)
     return result
+
+
+@mcp.tool()
+async def chuck_quit(ctx) -> dict[str, Any]:
+    """Ask the application to quit gracefully."""
+    app, rec = _ctx_app(ctx)
+    if rec:
+        return await rec.quit(app)
+    return await app.quit()
 
 
 # ---------------------------------------------------------------------------

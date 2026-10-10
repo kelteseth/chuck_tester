@@ -70,13 +70,41 @@ def _step_to_python(action: str, params: dict[str, Any], tag: str | None, verify
 
         case "drag":
             from_ = _format_item(params.get("from"))
-            to_ = _format_item(params.get("to"))
-            return f"await app.drag({from_}, {to_})"
+            if "to" in params:
+                to_ = ", " + _format_item(params.get("to"))
+            else:
+                to_ = ""
+            extras = _format_kwargs(params, exclude={"from", "to"})
+            return f"await app.drag({from_}{to_}{extras})"
 
         case "swipe":
             item = _format_item(params.get("item"))
             extras = _format_kwargs(params, exclude={"item"})
             return f"await app.swipe({item}{extras})"
+
+        case "hover":
+            if "item" in params:
+                item = _format_item(params.get("item"))
+                extras = _format_kwargs(params, exclude={"item"})
+                return f"await app.hover({item}{extras})"
+            return f"await app.hover({_format_kwargs(params).lstrip(', ')})"
+
+        case "scroll":
+            item = _format_item(params.get("item"))
+            extras = _format_kwargs(params, exclude={"item"})
+            return f"await app.scroll({item}{extras})"
+
+        case "window":
+            return f"await app.window({_format_kwargs(params).lstrip(', ')})"
+
+        case "set":
+            item = _format_item(params.get("item"))
+            return f"await app.set({item}, {params.get('property')!r}, {params.get('value')!r})"
+
+        case "invoke":
+            item = _format_item(params.get("item"))
+            args = "".join(f", {a!r}" for a in params.get("args", []))
+            return f"await app.invoke({item}, {params.get('method')!r}{args})"
 
         case "keys":
             item = _format_item(params.get("item"))

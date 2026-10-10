@@ -154,7 +154,7 @@ Dialog {
 |---|---|---|
 | `get`   | ✅ | Reads `opened`, `position`, `visible`, `title`, `modal`, any other `Q_PROPERTY` |
 | `wait`  | ✅ | NOTIFY signal when available, polling fallback otherwise |
-| `click`, `keys`, `drag`, `swipe`, `screenshot` | ❌ | Popups aren't `QQuickItem`s; returns `-32010 NotInteractive`. Drive them via a UI button that calls `popup.open()` / `popup.close()`, or send `Escape` if `closePolicy` allows it |
+| `click`, `keys`, `drag`, `swipe`, `hover`, `scroll`, `screenshot` | ❌ | Popups aren't `QQuickItem`s; returns `-32010 NotInteractive`. Drive them via a UI button that calls `popup.open()` / `popup.close()`, or send `Escape` if `closePolicy` allows it |
 | `find`, `tree` | ❌ | Tree commands walk scene-graph items only; popup wrappers don't appear |
 
 ### Closing a popup from a test

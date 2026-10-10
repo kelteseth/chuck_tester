@@ -1,7 +1,7 @@
 {
   "name": "chuck",
   "displayName": "chuck",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Write, repair and visually verify Qt/QML integration tests with chuck. Includes the chuck MCP server for AI-driven app exploration.",
   "author": {
     "name": "Elias Steurer",

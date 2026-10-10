@@ -12,7 +12,7 @@ def main(argv: list[str] | None = None) -> None:
         prog="chuck",
         description="Python controller for chuck_tester — AI-driven Qt/QML testing",
     )
-    parser.add_argument("--version", action="version", version="%(prog)s 0.1.0")
+    parser.add_argument("--version", action="version", version="%(prog)s 0.2.0")
 
     sub = parser.add_subparsers(dest="command")
 

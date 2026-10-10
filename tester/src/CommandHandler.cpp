@@ -3,6 +3,8 @@
 #include "PendingWait.h"
 #include <QBuffer>
 #include <QCoreApplication>
+#include <QElapsedTimer>
+#include <QJSEngine>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonValue>
@@ -10,14 +12,19 @@
 #include <QMetaObject>
 #include <QMetaProperty>
 #include <QMouseEvent>
+#include <QQmlContext>
+#include <QQmlEngine>
+#include <QQmlProperty>
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QTest>
 #include <QTimer>
+#include <QWheelEvent>
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <map>
+#include <optional>
 
 namespace {
 
@@ -191,9 +198,10 @@ namespace {
 
 } // namespace
 
-CommandHandler::CommandHandler(QQuickWindow& window, std::shared_ptr<ItemFinder> finder)
+CommandHandler::CommandHandler(QQuickWindow& window, std::shared_ptr<ItemFinder> finder, bool allowScripting)
     : m_window { &window }
     , m_finder { std::move(finder) }
+    , m_allowScripting { allowScripting }
 {
 }
 
@@ -235,6 +243,32 @@ std::expected<FindResult, FindError> CommandHandler::resolveItem(const QJsonValu
     return std::unexpected(FindError { ErrInvalidParams, QStringLiteral("'item' must be a string or object") });
 }
 
+// Resolves params[key] (scoped by an optional "root") to a QQuickItem that can
+// receive input right now. On failure returns the error object to respond with.
+std::expected<QQuickItem*, QJsonObject> CommandHandler::resolveInteractive(const QJsonObject& params, const QString& key, const char* command)
+{
+    QQuickItem* customRoot = nullptr;
+    if (params.contains(QStringLiteral("root"))) {
+        auto rootMatch = resolveItem(params[QStringLiteral("root")]);
+        if (!rootMatch)
+            return std::unexpected(makeErr(rootMatch.error().code, rootMatch.error().message));
+        if (auto guard = requireInteractive(*rootMatch, QStringLiteral("<root>"), command); !guard.isEmpty())
+            return std::unexpected(guard);
+        customRoot = rootMatch->item;
+    }
+
+    auto match = resolveItem(params[key], customRoot);
+    if (!match)
+        return std::unexpected(makeErr(match.error().code, match.error().message));
+
+    const auto identifier = params[key].isString() ? params[key].toString() : QStringLiteral("<property query>");
+    if (auto guard = requireInteractive(*match, identifier, command); !guard.isEmpty())
+        return std::unexpected(guard);
+    if (auto errObj = checkAccessible(match->item, identifier, *m_finder); !errObj.isEmpty())
+        return std::unexpected(errObj);
+    return match->item;
+}
+
 // --- Dispatch ---
 
 void CommandHandler::handleCommand(const QJsonObject& request, const std::function<void(const QJsonObject&)>& respond)
@@ -250,7 +284,9 @@ void CommandHandler::handleCommand(const QJsonObject& request, const std::functi
 
     QJsonObject result;
 
-    if (method == QStringLiteral("find"))
+    if (method == QStringLiteral("version"))
+        result = cmdVersion();
+    else if (method == QStringLiteral("find"))
         result = cmdFind(params);
     else if (method == QStringLiteral("get"))
         result = cmdGet(params);
@@ -260,6 +296,16 @@ void CommandHandler::handleCommand(const QJsonObject& request, const std::functi
         result = cmdDrag(params);
     else if (method == QStringLiteral("swipe"))
         result = cmdSwipe(params);
+    else if (method == QStringLiteral("hover"))
+        result = cmdHover(params);
+    else if (method == QStringLiteral("scroll"))
+        result = cmdScroll(params);
+    else if (method == QStringLiteral("window"))
+        result = cmdWindow(params);
+    else if (method == QStringLiteral("set"))
+        result = cmdSet(params);
+    else if (method == QStringLiteral("invoke"))
+        result = cmdInvoke(params);
     else if (method == QStringLiteral("keys"))
         result = cmdKeys(params);
     else if (method == QStringLiteral("screenshot"))
@@ -283,6 +329,32 @@ void CommandHandler::handleCommand(const QJsonObject& request, const std::functi
     } else {
         respond(jsonRpcResult(id, result));
     }
+}
+
+// --- version ---
+
+QJsonObject CommandHandler::cmdVersion() const
+{
+    // Clients compare against "methods", not the protocol number, to decide
+    // what they may call - keep this list in sync with handleCommand.
+    QJsonArray methods {
+        QStringLiteral("version"), QStringLiteral("find"), QStringLiteral("get"),
+        QStringLiteral("click"), QStringLiteral("drag"), QStringLiteral("swipe"),
+        QStringLiteral("hover"), QStringLiteral("scroll"), QStringLiteral("window"),
+        QStringLiteral("keys"), QStringLiteral("screenshot"), QStringLiteral("tree"),
+        QStringLiteral("wait"), QStringLiteral("quit")
+    };
+    if (m_allowScripting) {
+        methods.append(QStringLiteral("set"));
+        methods.append(QStringLiteral("invoke"));
+    }
+    return QJsonObject {
+        { QStringLiteral("protocol"), ProtocolVersion },
+        { QStringLiteral("tester"), QStringLiteral(TESTER_VERSION) },
+        { QStringLiteral("qt"), QString::fromLatin1(qVersion()) },
+        { QStringLiteral("methods"), methods },
+        { QStringLiteral("scripting"), m_allowScripting },
+    };
 }
 
 // --- find ---
@@ -613,6 +685,333 @@ QJsonObject CommandHandler::cmdSwipe(const QJsonObject& params)
         { QStringLiteral("distance"), distance },
         { QStringLiteral("from"), QJsonArray { startPt.x(), startPt.y() } },
         { QStringLiteral("to"), QJsonArray { endPt.x(), endPt.y() } },
+    };
+}
+
+// --- hover ---
+
+QJsonObject CommandHandler::cmdHover(const QJsonObject& params)
+{
+    // Moves the mouse with no button held. Target is an item's center (plus an
+    // optional "by" offset) or an absolute window point - the latter is how a
+    // test moves the pointer off an item again to end the hover.
+    const bool hasItem = params.contains(QStringLiteral("item"));
+    const bool hasPoint = params.contains(QStringLiteral("point"));
+    if (hasItem == hasPoint)
+        return makeErr(ErrInvalidParams, QStringLiteral("Specify exactly one of 'item' or 'point'"));
+
+    QPoint point;
+    QString hovered;
+    if (hasItem) {
+        auto item = resolveInteractive(params, QStringLiteral("item"), "hover");
+        if (!item)
+            return item.error();
+        auto center = m_finder->clickPoint(**item);
+        if (!center)
+            return makeErr(ErrClickFailed, QStringLiteral("Cannot get hover point for item"));
+        point = *center;
+        if (params.contains(QStringLiteral("by"))) {
+            const auto byArr = params[QStringLiteral("by")].toArray();
+            if (byArr.size() != 2 || !byArr[0].isDouble() || !byArr[1].isDouble())
+                return makeErr(ErrInvalidParams, QStringLiteral("'by' must be a [dx, dy] number array"));
+            point += QPoint(byArr[0].toInt(), byArr[1].toInt());
+        }
+        hovered = (*item)->objectName();
+    } else {
+        const auto ptArr = params[QStringLiteral("point")].toArray();
+        if (ptArr.size() != 2 || !ptArr[0].isDouble() || !ptArr[1].isDouble())
+            return makeErr(ErrInvalidParams, QStringLiteral("'point' must be an [x, y] number array"));
+        point = QPoint(ptArr[0].toInt(), ptArr[1].toInt());
+    }
+
+    QTest::mouseMove(m_window, point, 0);
+
+    QJsonObject result { { QStringLiteral("point"), QJsonArray { point.x(), point.y() } } };
+    if (hasItem)
+        result[QStringLiteral("hovered")] = hovered;
+    return result;
+}
+
+// --- scroll ---
+
+QJsonObject CommandHandler::cmdScroll(const QJsonObject& params)
+{
+    if (!params.contains(QStringLiteral("item")))
+        return makeErr(ErrInvalidParams, QStringLiteral("Missing 'item' parameter"));
+
+    auto item = resolveInteractive(params, QStringLiteral("item"), "scroll");
+    if (!item)
+        return item.error();
+    auto point = m_finder->clickPoint(**item);
+    if (!point)
+        return makeErr(ErrClickFailed, QStringLiteral("Cannot get scroll point for item"));
+
+    // One wheel notch is 120 eighths of a degree. Positive y means the wheel
+    // rolls away from the user, which scrolls content up.
+    constexpr int notch = 120;
+    const auto direction = params[QStringLiteral("direction")].toString(QStringLiteral("down"));
+    QPoint angle;
+    if (direction == QStringLiteral("up"))
+        angle = { 0, notch };
+    else if (direction == QStringLiteral("down"))
+        angle = { 0, -notch };
+    else if (direction == QStringLiteral("left"))
+        angle = { notch, 0 };
+    else if (direction == QStringLiteral("right"))
+        angle = { -notch, 0 };
+    else
+        return makeErr(ErrInvalidParams, QStringLiteral("Invalid direction: %1 (use up/down/left/right)").arg(direction));
+
+    const int steps = std::clamp(params[QStringLiteral("steps")].toInt(1), 1, 100);
+
+    Qt::KeyboardModifiers modifiers = Qt::NoModifier;
+    const auto modStr = params[QStringLiteral("modifiers")].toString();
+    for (const auto& mod : modStr.split('+', Qt::SkipEmptyParts)) {
+        const auto m = mod.trimmed().toLower();
+        if (m == QStringLiteral("ctrl"))
+            modifiers |= Qt::ControlModifier;
+        else if (m == QStringLiteral("shift"))
+            modifiers |= Qt::ShiftModifier;
+        else if (m == QStringLiteral("alt"))
+            modifiers |= Qt::AltModifier;
+        else if (m == QStringLiteral("meta"))
+            modifiers |= Qt::MetaModifier;
+        else
+            return makeErr(ErrInvalidParams, QStringLiteral("Unknown modifier: %1 (use Ctrl/Shift/Alt/Meta)").arg(mod));
+    }
+
+    // Sent to the window, not the item, so the scene's own hit testing picks
+    // the receiver - same reasoning as click. Each event needs a fresh,
+    // increasing timestamp: with the default of 0 Qt Quick treats every wheel
+    // event after the first as stale and drops it.
+    static QElapsedTimer clock;
+    static quint64 lastTimestamp = 0;
+    if (!clock.isValid())
+        clock.start();
+    const QPointF localPos(*point);
+    const QPointF globalPos(m_window->mapToGlobal(*point));
+    for (int i = 0; i < steps; ++i) {
+        lastTimestamp = std::max(lastTimestamp + 1, static_cast<quint64>(clock.elapsed()));
+        QWheelEvent event(localPos, globalPos, QPoint(), angle, Qt::NoButton, modifiers, Qt::NoScrollPhase, false);
+        event.setTimestamp(lastTimestamp);
+        QCoreApplication::sendEvent(m_window, &event);
+    }
+
+    return QJsonObject {
+        { QStringLiteral("scrolled"), (*item)->objectName() },
+        { QStringLiteral("direction"), direction },
+        { QStringLiteral("steps"), steps },
+        { QStringLiteral("point"), QJsonArray { point->x(), point->y() } },
+    };
+}
+
+// --- window ---
+
+QJsonObject CommandHandler::windowInfo() const
+{
+    const auto states = m_window->windowStates();
+    QString state = QStringLiteral("normal");
+    if (states & Qt::WindowFullScreen)
+        state = QStringLiteral("fullscreen");
+    else if (states & Qt::WindowMinimized)
+        state = QStringLiteral("minimized");
+    else if (states & Qt::WindowMaximized)
+        state = QStringLiteral("maximized");
+
+    return QJsonObject {
+        { QStringLiteral("state"), state },
+        { QStringLiteral("frameless"), m_window->flags().testFlag(Qt::FramelessWindowHint) },
+        { QStringLiteral("stayOnTop"), m_window->flags().testFlag(Qt::WindowStaysOnTopHint) },
+        { QStringLiteral("visible"), m_window->isVisible() },
+        { QStringLiteral("x"), m_window->x() },
+        { QStringLiteral("y"), m_window->y() },
+        { QStringLiteral("width"), m_window->width() },
+        { QStringLiteral("height"), m_window->height() },
+    };
+}
+
+QJsonObject CommandHandler::cmdWindow(const QJsonObject& params)
+{
+    // Everything is validated before anything is applied, so a bad request
+    // never leaves the window half-changed.
+    const auto stateStr = params[QStringLiteral("state")].toString();
+    std::optional<Qt::WindowState> state;
+    if (params.contains(QStringLiteral("state"))) {
+        if (stateStr == QStringLiteral("normal"))
+            state = Qt::WindowNoState;
+        else if (stateStr == QStringLiteral("maximized"))
+            state = Qt::WindowMaximized;
+        else if (stateStr == QStringLiteral("minimized"))
+            state = Qt::WindowMinimized;
+        else if (stateStr == QStringLiteral("fullscreen"))
+            state = Qt::WindowFullScreen;
+        else
+            return makeErr(ErrInvalidParams, QStringLiteral("Invalid state: %1 (use normal/maximized/minimized/fullscreen)").arg(stateStr));
+    }
+
+    for (const auto* key : { "frameless", "stayOnTop" }) {
+        const auto k = QString::fromLatin1(key);
+        if (params.contains(k) && !params[k].isBool())
+            return makeErr(ErrInvalidParams, QStringLiteral("'%1' must be a bool").arg(k));
+    }
+    for (const auto* key : { "width", "height", "x", "y" }) {
+        const auto k = QString::fromLatin1(key);
+        if (params.contains(k) && !params[k].isDouble())
+            return makeErr(ErrInvalidParams, QStringLiteral("'%1' must be a number").arg(k));
+    }
+
+    const bool hasSize = params.contains(QStringLiteral("width")) || params.contains(QStringLiteral("height"));
+    const bool hasPos = params.contains(QStringLiteral("x")) || params.contains(QStringLiteral("y"));
+    const int width = params[QStringLiteral("width")].toInt(m_window->width());
+    const int height = params[QStringLiteral("height")].toInt(m_window->height());
+    if (hasSize && (width <= 0 || height <= 0))
+        return makeErr(ErrInvalidParams, QStringLiteral("'width' and 'height' must be positive integers"));
+    // Maximized/fullscreen/minimized windows ignore geometry, so a size or
+    // position only makes sense together with the normal state.
+    if ((hasSize || hasPos) && state && *state != Qt::WindowNoState)
+        return makeErr(ErrInvalidParams, QStringLiteral("Size/position can only be combined with state 'normal' (got '%1')").arg(stateStr));
+
+    // Flags first: changing them can recreate the native window, which would
+    // otherwise drop a state or geometry applied just before.
+    auto flags = m_window->flags();
+    if (params.contains(QStringLiteral("frameless")))
+        flags.setFlag(Qt::FramelessWindowHint, params[QStringLiteral("frameless")].toBool());
+    if (params.contains(QStringLiteral("stayOnTop")))
+        flags.setFlag(Qt::WindowStaysOnTopHint, params[QStringLiteral("stayOnTop")].toBool());
+    if (flags != m_window->flags()) {
+        const bool wasVisible = m_window->isVisible();
+        const bool wasNormal = !(m_window->windowStates() & (Qt::WindowMaximized | Qt::WindowFullScreen | Qt::WindowMinimized));
+        const auto clientGeometry = m_window->geometry();
+        m_window->setFlags(flags);
+        // Some platforms hide the window when its flags change.
+        if (wasVisible && !m_window->isVisible())
+            m_window->show();
+        // Windows keeps the outer frame rect when the frame is added/removed,
+        // which grows or shrinks the client area. Tests care about the content
+        // size, so put that back.
+        if (wasNormal)
+            m_window->setGeometry(clientGeometry);
+    }
+
+    if (state) {
+        switch (*state) {
+        case Qt::WindowMaximized:
+            m_window->showMaximized();
+            break;
+        case Qt::WindowMinimized:
+            m_window->showMinimized();
+            break;
+        case Qt::WindowFullScreen:
+            m_window->showFullScreen();
+            break;
+        default:
+            m_window->showNormal();
+            break;
+        }
+    } else if ((hasSize || hasPos) && (m_window->windowStates() & (Qt::WindowMaximized | Qt::WindowFullScreen | Qt::WindowMinimized))) {
+        // Implied: you can't resize a maximized window, so restore it first.
+        m_window->showNormal();
+    }
+
+    if (hasSize)
+        m_window->resize(width, height);
+    if (hasPos)
+        m_window->setPosition(params[QStringLiteral("x")].toInt(m_window->x()), params[QStringLiteral("y")].toInt(m_window->y()));
+    QCoreApplication::processEvents();
+
+    // min/max size constraints or the window manager may clamp or delay the
+    // request, so report what the window actually ended up as.
+    return windowInfo();
+}
+
+// --- set ---
+
+QJsonObject CommandHandler::cmdSet(const QJsonObject& params)
+{
+    if (!m_allowScripting)
+        return makeErr(ErrScriptingDisabled, QStringLiteral("'set' is disabled (TesterServer::Config::allowScripting)"));
+    if (!params.contains(QStringLiteral("item")) || !params.contains(QStringLiteral("property")) || !params.contains(QStringLiteral("value")))
+        return makeErr(ErrInvalidParams, QStringLiteral("Missing 'item', 'property' or 'value' parameter"));
+
+    auto match = resolveItem(params[QStringLiteral("item")]);
+    if (!match)
+        return makeErr(match.error().code, match.error().message);
+
+    // QQmlProperty rather than QObject::setProperty: it understands grouped
+    // names ("font.pixelSize") and converts JSON numbers/strings to the
+    // property's type (int, enum, color, ...).
+    const auto name = params[QStringLiteral("property")].toString();
+    auto* context = qmlContext(match->object);
+    const auto prop = context ? QQmlProperty(match->object, name, context) : QQmlProperty(match->object, name);
+    if (!prop.isValid())
+        return makeErr(ErrPropertyNotFound, QStringLiteral("Unknown property: %1").arg(name));
+    if (!prop.isWritable())
+        return makeErr(ErrInvalidParams, QStringLiteral("Property is read-only: %1").arg(name));
+
+    const auto previous = QJsonValue::fromVariant(prop.read());
+    if (!prop.write(params[QStringLiteral("value")].toVariant()))
+        return makeErr(ErrInvalidParams, QStringLiteral("Cannot write value to '%1' (type %2)").arg(name, QString::fromLatin1(prop.propertyMetaType().name())));
+
+    return QJsonObject {
+        { QStringLiteral("item"), match->object->objectName() },
+        { QStringLiteral("property"), name },
+        { QStringLiteral("previous"), previous },
+        { QStringLiteral("value"), QJsonValue::fromVariant(prop.read()) },
+    };
+}
+
+// --- invoke ---
+
+QJsonObject CommandHandler::cmdInvoke(const QJsonObject& params)
+{
+    if (!m_allowScripting)
+        return makeErr(ErrScriptingDisabled, QStringLiteral("'invoke' is disabled (TesterServer::Config::allowScripting)"));
+    if (!params.contains(QStringLiteral("item")) || !params.contains(QStringLiteral("method")))
+        return makeErr(ErrInvalidParams, QStringLiteral("Missing 'item' or 'method' parameter"));
+
+    auto match = resolveItem(params[QStringLiteral("item")]);
+    if (!match)
+        return makeErr(match.error().code, match.error().message);
+
+    auto* engine = qmlEngine(match->object);
+    if (!engine)
+        engine = m_finder->resolveEngine();
+    if (!engine)
+        return makeErr(ErrInvokeFailed, QStringLiteral("No QML engine available to invoke methods"));
+
+    // Calling through the JS engine covers QML functions, Q_INVOKABLEs, slots
+    // and signals alike, and lets the engine do the argument conversion.
+    // toScriptValue (unlike newQObject) leaves the object's ownership alone.
+    const auto method = params[QStringLiteral("method")].toString();
+    const auto self = engine->toScriptValue(QVariant::fromValue(match->object));
+    const auto fn = self.property(method);
+    if (!fn.isCallable())
+        return makeErr(ErrPropertyNotFound, QStringLiteral("No callable method '%1' on %2").arg(method, QString::fromLatin1(match->object->metaObject()->className())));
+
+    QJSValueList args;
+    for (const auto& arg : params[QStringLiteral("args")].toArray())
+        args.append(engine->toScriptValue(arg.toVariant()));
+
+    const auto ret = fn.callWithInstance(self, args);
+    if (engine->hasError())
+        return makeErr(ErrInvokeFailed, QStringLiteral("%1() threw: %2").arg(method, engine->catchError().toString()));
+    if (ret.isError())
+        return makeErr(ErrInvokeFailed, QStringLiteral("%1() threw: %2").arg(method, ret.toString()));
+
+    QJsonValue result;
+    if (auto* obj = ret.toQObject()) {
+        result = QJsonObject {
+            { QStringLiteral("objectName"), obj->objectName() },
+            { QStringLiteral("type"), QString::fromLatin1(obj->metaObject()->className()) },
+        };
+    } else if (!ret.isUndefined()) {
+        result = QJsonValue::fromVariant(ret.toVariant());
+    }
+
+    return QJsonObject {
+        { QStringLiteral("item"), match->object->objectName() },
+        { QStringLiteral("method"), method },
+        { QStringLiteral("result"), result },
     };
 }
 

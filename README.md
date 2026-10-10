@@ -55,7 +55,9 @@ uv run pytest examples/todoapp/test_todoapp.py -v
 
 ## What chuck can do
 
-- `click` / `keys` / `drag` / `swipe` — interact with QML items by objectName
+- `click` / `keys` / `drag` / `swipe` / `hover` / `scroll` — interact with QML items by objectName
+- `set` / `invoke` — write properties and call QML functions to jump straight to a state
+- `window` — maximize, fullscreen, frameless, resize, move
 - `get` — read any property
 - `wait` — wait for items to appear or properties to change
 - `find` / `tree` — search and inspect the QML tree

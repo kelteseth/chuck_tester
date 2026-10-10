@@ -1,6 +1,6 @@
 [project]
 name = "chuck"
-version = "0.1.0"
+version = "0.2.0"
 description = "Python controller for chuck_tester — AI-driven Qt/QML testing"
 readme = "README.md"
 license = "AGPL-3.0-only OR LicenseRef-EliasSteurerTachiom"

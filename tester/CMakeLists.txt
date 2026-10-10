@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.18)
 
-project(tester VERSION 0.1 LANGUAGES CXX)
+project(tester VERSION 0.2 LANGUAGES CXX)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_CXX_STANDARD 23)
@@ -25,6 +25,8 @@ add_library(${PROJECT_NAME} STATIC ${SOURCES} ${HEADERS})
 target_link_libraries(${PROJECT_NAME}
     PRIVATE Qt6::WebSockets Qt6::Test
     PUBLIC Qt6::Core Qt6::Quick Qt6::Qml)
+
+target_compile_definitions(${PROJECT_NAME} PRIVATE TESTER_VERSION="${PROJECT_VERSION}")
 
 target_include_directories(${PROJECT_NAME}
     PUBLIC include/

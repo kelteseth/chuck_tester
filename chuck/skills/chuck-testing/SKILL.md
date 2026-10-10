@@ -195,11 +195,12 @@ for item in items:
     print(item["path"], item["objectName"], item["type"])
 ```
 
-#### `drag(from_item, to_item, *, root=None)`
-Drag from one item to another.
+#### `drag(from_item, to_item=None, *, by=None, steps=None, root=None)`
+Drag from one item to another, or by a `(dx, dy)` offset.
 
 ```python
 await app.drag("sourceItem", "targetItem")
+await app.drag("sliderHandle", by=(80, 0))
 ```
 
 #### `swipe(item, *, direction="up", distance=200)`
@@ -207,6 +208,41 @@ Swipe gesture. Directions: `"up"`, `"down"`, `"left"`, `"right"`.
 
 ```python
 await app.swipe("listView", direction="up", distance=300)
+```
+
+#### `hover(item=None, *, by=None, point=None, root=None)`
+Move the mouse over an item with no button held (hover effects, "details follow the hovered row").
+Hover another item or a window `point` to end it.
+
+```python
+await app.hover("row_3")
+await app.wait("row_3", property="hovered", value=True)
+```
+
+#### `scroll(item, *, direction="down", steps=1, modifiers=None, root=None)`
+Mouse-wheel notches. Flickables animate, so wait for `moving == False` before checking `contentY`.
+
+```python
+await app.scroll("resultList", steps=3)
+await app.wait("resultList", property="moving", value=False)
+```
+
+#### `window(*, state=None, frameless=None, stay_on_top=None, width=None, height=None, x=None, y=None)` / `resize(width, height)`
+Window state (`"normal"`, `"maximized"`, `"minimized"`, `"fullscreen"`), flags and geometry.
+Returns the actual result; check it rather than assuming the request was honored.
+
+```python
+await app.resize(360, 640)
+await app.window(state="fullscreen")
+```
+
+#### `set(item, property, value)` / `invoke(item, method, *args)`
+Write a property or call a QML function / `Q_INVOKABLE` - jump straight to a state instead of
+clicking through the UI. `set` removes the property's binding. Works on singletons and the window.
+
+```python
+await app.set("@MyApp/Theme", "dark", True)
+await app.invoke("root", "openPage", "components")
 ```
 
 #### `screenshot(item=None, *, tag=None, verify=False, save_to=None, method="ssim", threshold=0.95)`
