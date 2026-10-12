@@ -21,8 +21,8 @@ public:
     struct Config {
         quint16 port = 1408;
         // Optional: explicit engine for singleton lookups (@URI/Type identifiers).
-        // If null, ItemFinder falls back to qmlEngine(window) — which only works
-        // when the window was loaded from QML via QQmlApplicationEngine.
+        // If null, ItemFinder uses the window's engine, or for a window created
+        // in C++ (QQuickView) the engine of the QML content inside it.
         QQmlEngine* engine = nullptr;
         // Allow 'set' (write properties) and 'invoke' (call methods/QML functions).
         // Both run arbitrary app code on behalf of the client; disable if the

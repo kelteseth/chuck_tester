@@ -121,7 +121,10 @@ auto PendingWait::checkPropertyNow(QObject* target, const QString& property, con
         return;
 
     const auto current = target->property(property.toLatin1().constData());
-    if (current == expectedValue) {
+    // The expected value arrives as JSON, so a type with no QVariant
+    // conversion from it (QColor, QUrl, ...) never compares equal directly.
+    // Fall back to the JSON form 'get' reports, so wait accepts what get shows.
+    if (current == expectedValue || QJsonValue::fromVariant(current) == QJsonValue::fromVariant(expectedValue)) {
         resolve(QJsonObject {
             { QStringLiteral("property"), property },
             { QStringLiteral("value"), QJsonValue::fromVariant(current) },

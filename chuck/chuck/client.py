@@ -40,7 +40,10 @@ class Client:
     # -- context manager --
 
     async def connect(self) -> None:
-        self._ws = await ws_client.connect(self._uri)
+        # websockets rejects frames over 1 MiB by default; a screenshot of a
+        # full-screen window (a wallpaper on a 4K or ultrawide display) is
+        # several MiB of base64 PNG.
+        self._ws = await ws_client.connect(self._uri, max_size=None)
         self._reader_task = asyncio.create_task(self._reader_loop())
 
     async def close(self) -> None:

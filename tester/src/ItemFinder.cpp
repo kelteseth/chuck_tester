@@ -22,7 +22,15 @@ QQmlEngine* ItemFinder::resolveEngine() const
 {
     if (m_engine)
         return m_engine;
-    return qmlEngine(m_window);
+    if (auto* engine = qmlEngine(m_window))
+        return engine;
+    // A QQuickView (or any window created in C++) has no engine of its own;
+    // the QML content inside it does.
+    for (auto* child : m_window->contentItem()->childItems()) {
+        if (auto* engine = qmlEngine(child))
+            return engine;
+    }
+    return nullptr;
 }
 
 QQuickItem* ItemFinder::contentRoot() const
@@ -35,7 +43,20 @@ QQuickItem* ItemFinder::overlayRoot() const
     if (m_cachedOverlay)
         return m_cachedOverlay;
 
-    QQmlExpression expr(qmlContext(m_window), m_window, QStringLiteral("Overlay.overlay"));
+    // Qt Quick Controls parents its overlay to the window's content item.
+    // Finding it there needs no QML context, which a window created in C++
+    // (QQuickView) does not have; evaluating an expression without one crashes.
+    for (auto* child : m_window->contentItem()->childItems()) {
+        if (qstrcmp(child->metaObject()->className(), "QQuickOverlay") == 0) {
+            m_cachedOverlay = child;
+            return m_cachedOverlay;
+        }
+    }
+
+    auto* context = qmlContext(m_window);
+    if (!context)
+        return nullptr;
+    QQmlExpression expr(context, m_window, QStringLiteral("Overlay.overlay"));
     auto result = expr.evaluate();
     if (expr.hasError()) {
         qDebug() << "[tester] Overlay expression error:" << expr.error().toString();
