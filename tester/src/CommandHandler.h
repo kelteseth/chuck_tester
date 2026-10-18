@@ -13,8 +13,9 @@ class QQuickWindow;
 namespace tester {
 
 // Bump when methods are added or their params/results change shape.
-// 1: initial (no "version" method), 2: version, hover, scroll, window, set, invoke.
-inline constexpr int ProtocolVersion = 2;
+// 1: initial (no "version" method), 2: version, hover, scroll, window, set, invoke,
+// 3: itemAt, "source" on items, "pid" and "sourceLocations" in version.
+inline constexpr int ProtocolVersion = 3;
 
 class CommandHandler : public QObject {
     Q_OBJECT
@@ -38,6 +39,7 @@ private:
     auto cmdKeys(const QJsonObject& params) -> QJsonObject;
     auto cmdScreenshot(const QJsonObject& params) -> QJsonObject;
     auto cmdTree(const QJsonObject& params) -> QJsonObject;
+    auto cmdItemAt(const QJsonObject& params) -> QJsonObject;
     auto cmdWait(const QJsonValue& id, const QJsonObject& params, const std::function<void(const QJsonObject&)>& respond) -> void;
     auto cmdQuit() -> QJsonObject;
 

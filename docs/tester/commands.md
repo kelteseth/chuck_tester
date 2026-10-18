@@ -104,6 +104,23 @@ Dump the QML tree as a flat list.
 | `depth` | int | — | Max depth |
 | `props` | string | — | Properties to include per item |
 
+Items from `find`, `get`, `tree` and `itemAt` carry `source`, the QML location where the object is declared (`"qrc:/MyApp/Main.qml:32:9"`), when tester was built with `Qt6::QmlPrivate`. Objects created in C++ have none.
+
+### itemAt
+
+Return the topmost visible item at a window point, like an inspector's pick mode.
+
+```json
+{"jsonrpc": "2.0", "id": 9, "method": "itemAt", "params": {"x": 200, "y": 120, "props": "minimal"}}
+```
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `x`, `y` | number | required | Window coordinates, the same space as screenshots |
+| `props` | string | — | Properties to include for the hit item |
+
+The result is `{"item": {...}, "ancestors": [...]}`, ancestors nearest first and without properties. Any visible item counts, not only those that accept the mouse. `path` is empty for items that `find`/`tree` don't list, such as a control's internals.
+
 ### screenshot
 
 Capture a screenshot.
@@ -245,9 +262,12 @@ Returns `result`: the return value, or `{objectName, type}` when the method retu
 Report what this tester supports. Chuck calls it on connect. No parameters.
 
 ```json
-{"protocol": 2, "tester": "0.2", "qt": "6.12.0", "scripting": true,
+{"protocol": 3, "tester": "0.2", "qt": "6.12.0", "scripting": true,
+ "pid": 4242, "sourceLocations": true,
  "methods": ["version", "find", "get", "click", "..."]}
 ```
+
+`pid` is the app's process ID, for attaching a native debugger. `sourceLocations` says whether items carry `source`.
 
 `protocol` goes up whenever methods are added or change shape. `methods` is the authoritative list. Testers from before protocol 2 don't have `version` and answer with `-32601`.
 

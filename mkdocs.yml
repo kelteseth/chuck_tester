@@ -94,5 +94,6 @@ nav:
   - Visual Testing: guide/visual-testing.md
   - Recording & Replay: guide/recording.md
   - AI Repair: guide/ai-repair.md
+  - Profiling, Debugging & Preview: guide/qml-tooling.md
 - Examples:
   - Todo App: examples/todoapp.md

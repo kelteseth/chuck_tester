@@ -69,6 +69,18 @@ tester::TesterServer server(*window, {.allowScripting = false});
 
 **Important:** Create the TesterServer AFTER the engine loads and the window exists. The server must be on the stack (or have sufficient lifetime) to outlive `app.exec()`.
 
+**Optional: QML profiler, debugger and live preview.** To let `qmlprofiler`, `qmlpreview` and Qt Creator attach without a `QT_QML_DEBUG` build, add this as the first line of `main()`, before the `QGuiApplication`:
+
+```cpp
+#include <tester/QmlDebug.h>
+
+tester::enableQmlDebuggingFromArguments(argc, argv);
+```
+
+It only acts when the app is started with `-qmljsdebugger=...` bound to loopback, so it is safe in release builds. See the `chuck-qml-tooling` skill.
+
+**Source locations.** If CMake finds `Qt6::QmlPrivate` (part of every aqt/online-installer Qt; distros ship it as the Qt private-dev package), items reported to chuck carry their QML `file:line:column` in `source`.
+
 ## Step 3: Add objectNames to QML
 
 ### What Needs a Name

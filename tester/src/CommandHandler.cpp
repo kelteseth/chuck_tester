@@ -1,6 +1,7 @@
 #include "CommandHandler.h"
 #include "ItemFinder.h"
 #include "PendingWait.h"
+#include "SourceLocation.h"
 #include <QBuffer>
 #include <QCoreApplication>
 #include <QElapsedTimer>
@@ -109,6 +110,8 @@ QJsonObject itemToJson(QObject* object, const QString& path, const PropsFilter& 
         { QStringLiteral("type"), QString::fromLatin1(object->metaObject()->className()) },
         { QStringLiteral("path"), path },
     };
+    if (const auto source = tester::sourceLocation(object); !source.isEmpty())
+        obj[QStringLiteral("source")] = source;
 
     if (filter.mode == PropsMode::Minimal) {
         const auto mandatory = object->property("isMandatory");
@@ -142,6 +145,27 @@ QQuickItem* topmostMouseItemAt(QQuickItem* root, const QPointF& scenePos)
     if (root->acceptedMouseButtons() != Qt::NoButton)
         return root;
     return nullptr;
+}
+
+// Unlike topmostMouseItemAt this finds what is painted at the point, not what
+// takes the click: any visible item counts, and children outside an unclipped
+// parent's bounds still count, as they do on screen.
+QQuickItem* topmostVisibleItemAt(QQuickItem* root, const QPointF& scenePos)
+{
+    if (!root->isVisible() || qFuzzyIsNull(root->opacity()))
+        return nullptr;
+
+    const bool inside = root->contains(root->mapFromScene(scenePos));
+    if (!inside && root->clip())
+        return nullptr;
+
+    auto children = root->childItems();
+    std::ranges::stable_sort(children, {}, &QQuickItem::z);
+    for (auto i = children.size() - 1; i >= 0; --i) {
+        if (auto* hit = topmostVisibleItemAt(children[i], scenePos))
+            return hit;
+    }
+    return inside ? root : nullptr;
 }
 
 // Internal error sentinel: command methods return this on failure.
@@ -312,6 +336,8 @@ void CommandHandler::handleCommand(const QJsonObject& request, const std::functi
         result = cmdScreenshot(params);
     else if (method == QStringLiteral("tree"))
         result = cmdTree(params);
+    else if (method == QStringLiteral("itemAt"))
+        result = cmdItemAt(params);
     else if (method == QStringLiteral("wait")) {
         cmdWait(id, params, respond);
         return;
@@ -342,7 +368,7 @@ QJsonObject CommandHandler::cmdVersion() const
         QStringLiteral("click"), QStringLiteral("drag"), QStringLiteral("swipe"),
         QStringLiteral("hover"), QStringLiteral("scroll"), QStringLiteral("window"),
         QStringLiteral("keys"), QStringLiteral("screenshot"), QStringLiteral("tree"),
-        QStringLiteral("wait"), QStringLiteral("quit")
+        QStringLiteral("wait"), QStringLiteral("quit"), QStringLiteral("itemAt")
     };
     if (m_allowScripting) {
         methods.append(QStringLiteral("set"));
@@ -354,6 +380,8 @@ QJsonObject CommandHandler::cmdVersion() const
         { QStringLiteral("qt"), QString::fromLatin1(qVersion()) },
         { QStringLiteral("methods"), methods },
         { QStringLiteral("scripting"), m_allowScripting },
+        { QStringLiteral("pid"), QCoreApplication::applicationPid() },
+        { QStringLiteral("sourceLocations"), hasSourceLocations() },
     };
 }
 
@@ -1163,6 +1191,41 @@ QJsonObject CommandHandler::cmdTree(const QJsonObject& params)
         arr.append(itemToJson(fr.object, fr.path, filter));
 
     return QJsonObject { { QStringLiteral("items"), arr } };
+}
+
+// --- itemAt ---
+
+QJsonObject CommandHandler::cmdItemAt(const QJsonObject& params)
+{
+    if (!params.contains(QStringLiteral("x")) || !params.contains(QStringLiteral("y")))
+        return makeErr(ErrInvalidParams, QStringLiteral("Missing 'x' or 'y' parameter"));
+    const auto filter = parsePropsParam(params);
+    if (!filter.error.isEmpty())
+        return makeErr(ErrInvalidParams, filter.error);
+
+    const QPointF point { params[QStringLiteral("x")].toDouble(), params[QStringLiteral("y")].toDouble() };
+    auto* hit = topmostVisibleItemAt(m_window->contentItem(), point);
+    if (!hit)
+        return makeErr(ErrItemNotFound, QStringLiteral("No visible item at %1,%2").arg(point.x()).arg(point.y()));
+
+    // Paths come from the same walk as find/tree so they can be passed back to
+    // other commands. Items that walk skips (e.g. a control's internals) get none.
+    std::unordered_map<QObject*, QString> paths;
+    for (const auto& fr : m_finder->findItems())
+        paths.emplace(fr.object, fr.path);
+    const auto pathOf = [&paths](QObject* object) {
+        const auto it = paths.find(object);
+        return it == paths.end() ? QString {} : it->second;
+    };
+
+    QJsonArray ancestors;
+    for (auto* cur = hit->parentItem(); cur; cur = cur->parentItem())
+        ancestors.append(itemToJson(cur, pathOf(cur), { .mode = PropsMode::Minimal }));
+
+    return QJsonObject {
+        { QStringLiteral("item"), itemToJson(hit, pathOf(hit), filter) },
+        { QStringLiteral("ancestors"), ancestors },
+    };
 }
 
 // --- wait ---

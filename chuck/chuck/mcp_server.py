@@ -25,6 +25,8 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP, Image
 
 from .commands import ChuckClient
+from .qmldebug import DEFAULT_PROFILE_FEATURES, QmlProfiler
+from .qtd import summarize
 from .recorder import Recorder
 
 
@@ -38,6 +40,7 @@ class AppContext:
 
     app: ChuckClient
     recorder: Recorder | None = None
+    profiler: QmlProfiler | None = None
 
 
 # These are set before mcp.run() is called via configure().
@@ -65,9 +68,12 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
         recorder = Recorder(_record_path)
         recorder.start()
 
+    context = AppContext(app=app, recorder=recorder)
     try:
-        yield AppContext(app=app, recorder=recorder)
+        yield context
     finally:
+        if context.profiler:
+            context.profiler.close()
         if recorder:
             recorder.stop()
         await app.__aexit__(None, None, None)
@@ -457,6 +463,83 @@ async def chuck_tree(
     if rec:
         rec._write("tree", root=root, depth=depth, props=props)
     return result
+
+
+@mcp.tool()
+async def chuck_item_at(
+    ctx,
+    x: float,
+    y: float,
+    props: str | None = None,
+) -> dict[str, Any]:
+    """Find what is drawn at a point in the window, like an inspector's pick mode.
+
+    Returns the topmost visible item with its "source" (QML file:line:column
+    where it is declared) and its "ancestors", nearest first. The hit is often
+    an unnamed internal (a control's background or label); the first named
+    ancestor and its source line are usually what you want to edit.
+
+    Args:
+        x: Window x coordinate (same space as screenshots and click points).
+        y: Window y coordinate.
+        props: Properties to include for the hit item ("minimal" for none).
+    """
+    app, _ = _ctx_app(ctx)
+    return await app.item_at(x, y, props=props)
+
+
+@mcp.tool()
+async def chuck_profile_start(
+    ctx,
+    qml_port: int,
+    features: str | None = None,
+) -> dict[str, Any]:
+    """Start recording a QML profiler trace.
+
+    The app must have been launched with
+    -qmljsdebugger=port:<qml_port>,host:127.0.0.1,services:CanvasFrameRate,EngineControl,DebugMessages
+    (and call tester::enableQmlDebuggingFromArguments). Drive the scenario,
+    then call chuck_profile_stop. Needs qmlprofiler from Qt's bin directory
+    on PATH or in CHUCK_QT_BIN.
+
+    Args:
+        qml_port: The app's QML debug port.
+        features: qmlprofiler features, comma separated. Defaults to QML
+            compiling/creating/binding/javascript/signals/pixmaps; add
+            "scenegraph,animations,memory" for rendering problems.
+    """
+    lc: AppContext = ctx.request_context.lifespan_context
+    if lc.profiler is None:
+        selected = features.split(",") if features else DEFAULT_PROFILE_FEATURES
+        lc.profiler = QmlProfiler(qml_port, features=selected)
+        lc.profiler.attach()
+    lc.profiler.start()
+    return {"recording": True, "qml_port": qml_port}
+
+
+@mcp.tool()
+async def chuck_profile_stop(
+    ctx,
+    output: str,
+    start_s: float = 0.0,
+    end_s: float | None = None,
+) -> str:
+    """Stop recording, save the trace to a .qtd file and return a summary.
+
+    The summary lists self time by event type, the costliest events with
+    their QML file:line, and long top-level ranges. Call again with
+    chuck_profile_start to record another scenario on the same connection.
+
+    Args:
+        output: Path of the .qtd file to write.
+        start_s: Summarise only from this many seconds into the trace.
+        end_s: Summarise only up to this many seconds into the trace.
+    """
+    lc: AppContext = ctx.request_context.lifespan_context
+    if lc.profiler is None:
+        raise RuntimeError("Not profiling: call chuck_profile_start first")
+    path = lc.profiler.save(output)
+    return f"Wrote {path}\n" + summarize(path, start_s=start_s, end_s=end_s).format()
 
 
 @mcp.tool()

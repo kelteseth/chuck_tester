@@ -36,7 +36,12 @@ Chuck provides a FastMCP server that exposes all chuck commands as MCP tools. An
 | `chuck_set` | Write a property (removes its binding) | `item`, `property`, `value` |
 | `chuck_invoke` | Call a QML function / Q_INVOKABLE | `item`, `method`, `args` |
 | `chuck_screenshot` | Capture the window or an item | `item`, `tag`, `verify` |
+| `chuck_item_at` | What is drawn at a point, with QML `source` and ancestors | `x`, `y`, `props` |
+| `chuck_profile_start` | Attach qmlprofiler and start recording | `qml_port`, `features` |
+| `chuck_profile_stop` | Save the `.qtd` and return a time summary | `output`, `start_s`, `end_s` |
 | `chuck_quit` | Close the application | — |
+
+Items from `chuck_tree`/`chuck_find`/`chuck_get` carry `source` (QML `file:line:column`). Use it, or `chuck_item_at` on a screenshot pixel, to go from what you see to the file to edit. Profiling needs the app launched with a QML debug port; see the `chuck-qml-tooling` skill.
 
 Recording is not a tool: start the server with `--record session.jsonl` and every tool call is logged.
 

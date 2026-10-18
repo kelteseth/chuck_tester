@@ -104,6 +104,15 @@ items = await app.tree(
 ) -> list[dict]
 ```
 
+### item_at
+
+```python
+hit = await app.item_at(x: float, y: float, *, props: str = None) -> dict
+# {"item": {..., "source": "qrc:/MyApp/Main.qml:32:9"}, "ancestors": [...]}
+```
+
+Topmost visible item at a window point, with its ancestors nearest first. See [source locations](../guide/qml-tooling.md#source-locations-and-picking-items).
+
 ### screenshot
 
 ```python
@@ -213,11 +222,33 @@ On connect, `ChuckClient` asks the app's tester what it supports (`app.server`):
 
 ```python
 async with ChuckClient() as app:
-    print(app.server)  # {"protocol": 2, "tester": "0.2", "qt": "6.12.0", "methods": [...], ...}
+    print(app.server)  # {"protocol": 3, "pid": 4242, "sourceLocations": True, "tester": "0.2", "qt": "6.12.0", "methods": [...], ...}
 ```
 
 - If the tester is older than chuck, a warning is emitted and commands it lacks raise `ChuckError(-32601, "Cannot call 'hover': ... rebuild the app against a newer tester")` without being sent. Without this check, an old tester would ignore params it doesn't know.
 - If the tester is newer than chuck, a warning suggests updating chuck.
+
+## QML tooling
+
+`chuck.qmldebug` attaches Qt's QML tools to the app. Both classes are context managers, and their calls block until the tool confirms.
+
+```python
+from chuck import QmlPreview, QmlProfiler, qmljsdebugger_arg
+from chuck.qmldebug import PROFILER_SERVICES, DEBUGGER_SERVICES, INSPECTOR_SERVICES, free_port, qt_bin_from_build
+from chuck.qtd import summarize
+
+qmljsdebugger_arg(port=None, *, file=None, block=False, services=None, host="127.0.0.1") -> str
+
+profiler = QmlProfiler(port, *, host="127.0.0.1", features=DEFAULT_PROFILE_FEATURES, record=False, qt_bin=None)
+profiler.attach(); profiler.start(); profiler.stop(); profiler.save(path) -> Path; profiler.close()
+
+preview = QmlPreview(program, args=(), *, build_dir=None, resources=(), cwd=None, env=None, qt_bin=None)
+preview.start(); preview.restart(); preview.close()
+
+summarize(path, *, start_s=0.0, end_s=None, top=40, long_ms=40.0) -> TraceSummary  # .format() for text
+```
+
+Failures raise `QmlToolError`. See [Profiling, Debugging, Inspecting and Live Preview](../guide/qml-tooling.md).
 
 ## ChuckError
 

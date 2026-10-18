@@ -1,10 +1,12 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQuickWindow>
+#include <tester/QmlDebug.h>
 #include <tester/TesterServer.h>
 
 int main(int argc, char* argv[])
 {
+    tester::enableQmlDebuggingFromArguments(argc, argv);
     QGuiApplication app(argc, argv);
     QQmlApplicationEngine engine;
 

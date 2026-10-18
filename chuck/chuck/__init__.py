@@ -2,6 +2,7 @@
 
 from .client import Client, ChuckError
 from .commands import ChuckClient
+from .qmldebug import QmlPreview, QmlProfiler, QmlToolError, qmljsdebugger_arg
 from .replayer import ReplayReport, StepResult
 from .screenshots import BaselineStore
 from .visual_diff import CompareResult
@@ -10,6 +11,7 @@ __all__ = [
     "Client", "ChuckError", "ChuckClient",
     "BaselineStore", "CompareResult",
     "ReplayReport", "StepResult",
+    "QmlProfiler", "QmlPreview", "QmlToolError", "qmljsdebugger_arg",
 ]
 
 

@@ -53,6 +53,9 @@ Add to your MCP client configuration (e.g., VS Code `settings.json` or Claude De
 | `chuck_screenshot` | Capture screenshot (returned as image); `tag` + `verify` compare against a baseline |
 | `chuck_wait` | Wait for item or property |
 | `chuck_tree` | Dump the QML tree |
+| `chuck_item_at` | What is drawn at a window point, with QML source and ancestors |
+| `chuck_profile_start` | Attach qmlprofiler to the app's QML debug port and start recording |
+| `chuck_profile_stop` | Save the trace and return a summary of where the time went |
 | `chuck_quit` | Close the app |
 
 ## AI Workflows

@@ -60,9 +60,11 @@ uv run pytest examples/todoapp/test_todoapp.py -v
 - `window` — maximize, fullscreen, frameless, resize, move
 - `get` — read any property
 - `wait` — wait for items to appear or properties to change
-- `find` / `tree` — search and inspect the QML tree
+- `find` / `tree` — search and inspect the QML tree, with each item's QML `file:line`
+- `item_at` — pick what is drawn at a point, like an inspector
 - `screenshot` — capture PNGs, compare against baselines (SSIM, pHash, exact)
 - `quit` — close the app
+- QML profiler, QML debugger and live preview (`qmlpreview`) attach without a `QT_QML_DEBUG` build — see the [guide](docs/guide/qml-tooling.md)
 
 ## Use it with an AI agent
 

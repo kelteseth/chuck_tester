@@ -59,6 +59,7 @@ The app must be running with tester enabled before tests execute. Tests do NOT l
 | chuck-repair | `chuck/skills/chuck-repair/` | Diagnose and fix test failures |
 | chuck-visual | `chuck/skills/chuck-visual/` | Screenshot comparison and visual regression |
 | chuck-mcp-explorer | `chuck/skills/chuck-mcp-explorer/` | Use chuck's MCP server for interactive exploration |
+| chuck-qml-tooling | `chuck/skills/chuck-qml-tooling/` | Profile, inspect (source locations, item_at), live-preview, attach debuggers |
 
 ## Tech Stack
 

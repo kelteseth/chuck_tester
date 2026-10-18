@@ -16,7 +16,7 @@ from .visual_diff import CompareResult
 
 # Protocol this chuck was written against; see ProtocolVersion in
 # tester/src/CommandHandler.h for what each number added.
-PROTOCOL_VERSION = 2
+PROTOCOL_VERSION = 3
 
 _ERR_METHOD_NOT_FOUND = -32601
 
@@ -417,6 +417,22 @@ class ChuckClient:
         """Dump the QML tree as a list of items."""
         result = await self._call("tree", root=root, depth=depth, props=props)
         return result.get("items", []) if isinstance(result, dict) else result
+
+    async def item_at(
+        self,
+        x: float,
+        y: float,
+        *,
+        props: str | None = None,
+    ) -> dict[str, Any]:
+        """Return the topmost visible item at window coordinates ``(x, y)``.
+
+        The result has ``item`` (with ``source``, its QML ``file:line:column``,
+        when the app's tester was built with Qt6::QmlPrivate) and ``ancestors``,
+        nearest first. Deep hits are often unnamed internals such as a
+        control's background, so look up the ancestors for the named item.
+        """
+        return await self._call("itemAt", x=x, y=y, props=props)
 
     async def wait(
         self,
