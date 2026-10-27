@@ -634,6 +634,14 @@ QList<QQuickItem*> ItemFinder::effectiveChildren(QQuickItem* item) const
                             children.append(extra);
                     }
                 }
+                // Some controls parent items to themselves rather than to
+                // contentItem, e.g. SplitView's handles. The background is
+                // left out so type lookups don't start matching it.
+                auto* background = item->property("background").value<QQuickItem*>();
+                for (auto* child : item->childItems()) {
+                    if (child != contentItem && child != background && !children.contains(child))
+                        children.append(child);
+                }
                 return children;
             }
         }
