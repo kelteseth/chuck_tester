@@ -44,10 +44,11 @@ class ChuckClient:
         *,
         uri: str | None = None,
         baseline_dir: str | Path = "baselines",
+        baseline_format: str = "png",
     ) -> None:
         self._uri = uri or f"ws://{host}:{port}"
         self._client = Client(self._uri)
-        self._baselines = BaselineStore(baseline_dir)
+        self._baselines = BaselineStore(baseline_dir, format=baseline_format)
         self._server: dict[str, Any] = {}
 
     async def __aenter__(self) -> ChuckClient:

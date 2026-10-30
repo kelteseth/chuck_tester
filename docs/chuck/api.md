@@ -20,8 +20,12 @@ ChuckClient(
     *,
     uri: str | None = None,          # override full WebSocket URI
     baseline_dir: str | Path = "baselines",  # for screenshot baselines
+    baseline_format: str = "png",            # "png" or "avif"
 )
 ```
+
+`baseline_format="avif"` stores baselines at about a quarter of the PNG size (AVIF quality 90, no chroma
+subsampling; needs Pillow 11.3 or newer). It is lossy, so use PNG with `method="exact"`; SSIM changes by under 0.001.
 
 ### click
 

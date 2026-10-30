@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import io
 from pathlib import Path
 
 from PIL import Image
@@ -12,9 +13,16 @@ from .visual_diff import CompareResult, compare, generate_diff
 # Default baseline directory (relative to session file or cwd)
 DEFAULT_BASELINE_DIR = "baselines"
 
+# AVIF baselines are about a quarter of the PNG size. They are lossy, so the
+# "exact" compare method needs PNG; at this quality SSIM moves by under 0.001.
+_SAVE_OPTIONS = {
+    "png": ("PNG", {}),
+    "avif": ("AVIF", {"quality": 90, "subsampling": "4:4:4"}),
+}
+
 
 class BaselineStore:
-    """Manages a directory of baseline PNG screenshots.
+    """Manages a directory of baseline screenshots, as PNG or AVIF files.
 
     Structure::
 
@@ -27,8 +35,11 @@ class BaselineStore:
                 after_login.diff.png
     """
 
-    def __init__(self, baseline_dir: str | Path = DEFAULT_BASELINE_DIR) -> None:
+    def __init__(self, baseline_dir: str | Path = DEFAULT_BASELINE_DIR, *, format: str = "png") -> None:
+        if format not in _SAVE_OPTIONS:
+            raise ValueError(f"Unknown baseline format '{format}', expected one of {sorted(_SAVE_OPTIONS)}")
         self._dir = Path(baseline_dir)
+        self._format = format
 
     @property
     def dir(self) -> Path:
@@ -39,7 +50,7 @@ class BaselineStore:
         (self._dir / "diffs").mkdir(exist_ok=True)
 
     def baseline_path(self, tag: str) -> Path:
-        return self._dir / f"{tag}.png"
+        return self._dir / f"{tag}.{self._format}"
 
     def diff_path(self, tag: str) -> Path:
         return self._dir / "diffs" / f"{tag}.diff.png"
@@ -59,14 +70,12 @@ class BaselineStore:
     def save_baseline(self, tag: str, image: Image.Image) -> Path:
         self.ensure_dir()
         path = self.baseline_path(tag)
-        image.save(path, "PNG")
+        name, options = _SAVE_OPTIONS[self._format]
+        image.save(path, name, **options)
         return path
 
     def save_from_base64(self, tag: str, data: str) -> Path:
-        self.ensure_dir()
-        path = self.baseline_path(tag)
-        path.write_bytes(base64.b64decode(data))
-        return path
+        return self.save_baseline(tag, Image.open(io.BytesIO(base64.b64decode(data))))
 
     def save_diff(self, tag: str, diff_image: Image.Image) -> Path:
         self.ensure_dir()
@@ -83,7 +92,7 @@ class BaselineStore:
     def list_baselines(self) -> list[str]:
         if not self._dir.is_dir():
             return []
-        return sorted(p.stem for p in self._dir.glob("*.png"))
+        return sorted(p.stem for p in self._dir.glob(f"*.{self._format}"))
 
     def verify(
         self,
