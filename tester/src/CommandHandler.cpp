@@ -855,6 +855,7 @@ QJsonObject CommandHandler::windowInfo() const
         { QStringLiteral("y"), m_window->y() },
         { QStringLiteral("width"), m_window->width() },
         { QStringLiteral("height"), m_window->height() },
+        { QStringLiteral("devicePixelRatio"), m_window->devicePixelRatio() },
     };
 }
 
@@ -1143,8 +1144,10 @@ QJsonObject CommandHandler::cmdScreenshot(const QJsonObject& params)
         return makeErr(ErrScreenshotFailed, QStringLiteral("Window grab returned null image"));
 
     if (target) {
-        const auto rect = QRectF(target->mapToScene(QPointF(0, 0)),
-            QSizeF(target->width(), target->height()));
+        // The grab is in device pixels, the item geometry in logical pixels.
+        const auto dpr = image.devicePixelRatio();
+        const auto rect = QRectF(target->mapToScene(QPointF(0, 0)) * dpr,
+            QSizeF(target->width(), target->height()) * dpr);
         image = image.copy(rect.toAlignedRect());
     }
 

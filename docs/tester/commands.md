@@ -129,7 +129,8 @@ Capture a screenshot.
 |-------|------|---------|-------------|
 | `item` | string | — | Crop to this item. Omit for full window. |
 
-Returns `width`, `height`, `format` (`"png"`), and `data` (base64-encoded PNG).
+Returns `width`, `height`, `format` (`"png"`), and `data` (base64-encoded PNG). The image is in device pixels: on a
+screen with a scale factor of 1.5, a 800x600 window gives a 1200x900 image.
 
 ### drag
 
@@ -216,8 +217,10 @@ Returns what the window actually ended up as. The window manager or the window's
 
 ```json
 {"state": "normal", "frameless": false, "stayOnTop": false, "visible": true,
- "x": 100, "y": 120, "width": 800, "height": 600}
+ "x": 100, "y": 120, "width": 800, "height": 600, "devicePixelRatio": 1.0}
 ```
+
+`width` and `height` are logical pixels; screenshots are `devicePixelRatio` times larger.
 
 ### set
 
